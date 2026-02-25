@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Log In{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex items-center justify-center p-6 relative">
+    <!-- Background orbs -->
+    <div class="absolute top-1/3 right-1/4 w-80 h-80 rounded-full blur-3xl pointer-events-none"
+        style="background:rgba(26,50,99,0.25);"></div>
+    <div class="absolute bottom-1/3 left-1/3 w-64 h-64 rounded-full blur-3xl pointer-events-none"
+        style="background:rgba(84,119,146,0.12);"></div>
+    <div class="absolute top-1/4 left-1/4 w-48 h-48 rounded-full blur-3xl pointer-events-none"
+        style="background:rgba(250,185,91,0.06);"></div>
+
+    <div class="w-full max-w-md relative z-10">
+        <!-- Back -->
+        <a href="{% url 'landing' %}"
+            class="inline-flex items-center gap-2 text-sm mb-8 transition-all hover:opacity-100 opacity-60"
+            style="color:var(--accent-steel);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Firma-KI
+        </a>
+
+        <!-- Form Card -->
+        <div class="glass-card p-8 glow">
+            <div class="text-center mb-8">
+                <div class="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
+                    style="background:var(--gradient-primary);">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="color:var(--text-inverse);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold mb-2" style="color:var(--text-primary);">Welcome Back</h1>
+                <p class="text-sm" style="color:var(--text-muted);">Log in to your Firma-KI dashboard.</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="mb-6 p-4 rounded-xl"
+                style="background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25);">
+                <p class="text-sm" style="color:var(--accent-red);">Invalid username or password. Please try again.</p>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Username</label>
+                    {{ form.username }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Password</label>
+                    {{ form.password }}
+                </div>
+                <button type="submit" class="btn-gradient w-full py-3 mt-2 text-center"
+                    style="color:var(--text-primary);">
+                    Log In →
+                </button>
+            </form>
+
+            <p class="text-center text-sm mt-6" style="color:var(--text-muted);">
+                No account? <a href="{% url 'accounts:register' %}"
+                    class="font-semibold transition-colors hover:opacity-100 opacity-80"
+                    style="color:var(--accent-navy);">Register your organization</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

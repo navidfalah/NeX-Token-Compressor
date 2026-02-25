@@ -1,0 +1,146 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Audit Logs{% endblock %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Audit & Debug Explorer</h1>
+        <p style="color:var(--text-secondary);">Deep-dive into every API call through the Firma-KI gateway.</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="glass-card p-4 mb-6 flex flex-wrap items-center gap-4">
+    <form method="get" class="flex flex-wrap items-center gap-4 w-full">
+        <div class="flex-1 min-w-[200px]">
+            <input type="text" name="search" value="{{ search }}" class="w-full px-4 py-2.5 rounded-xl text-sm fi-input"
+                style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                placeholder="Search payloads…">
+        </div>
+        <select name="status" class="px-4 py-2.5 rounded-xl text-sm fi-input"
+            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+            <option value="">All Status</option>
+            {% if status_filter == 'success' %}
+            <option value="success" selected>Success</option>
+            {% else %}
+            <option value="success">Success</option>
+            {% endif %}
+
+            {% if status_filter == 'cached' %}
+            <option value="cached" selected>Cached</option>
+            {% else %}
+            <option value="cached">Cached</option>
+            {% endif %}
+
+            {% if status_filter == 'error' %}
+            <option value="error" selected>Error</option>
+            {% else %}
+            <option value="error">Error</option>
+            {% endif %}
+        </select>
+        <button type="submit" class="btn-gradient text-sm px-5 py-2.5">Filter</button>
+        {% if search or status_filter %}
+        <a href="{% url 'dashboard:audit_list' %}" class="text-sm transition-colors hover:opacity-100 opacity-60"
+            style="color:var(--text-muted);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Logs Table -->
+<div class="glass-card overflow-hidden">
+    {% if logs %}
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Original Tokens</th>
+                    <th>Compressed</th>
+                    <th>Savings</th>
+                    <th>Cost Saved</th>
+                    <th>Latency</th>
+                    <th>Cache</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="cursor-pointer" onclick="window.location='{% url 'dashboard:audit_detail' log.id %}'">
+                    <td class="text-xs font-mono" style="color:var(--text-muted);">
+                        {% with ts=log.timestamp|date:"Y-m-d H:i:s" %}
+                        {{ ts }}
+                        {% endwith %}
+                    </td>
+                    <td class="text-sm font-medium" style="color:var(--text-primary);">
+                        {% with uname=log.user.username|default:"API Key" %}
+                        {{ uname }}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if log.source == 'gateway' %}
+                        <span class="badge badge-active">API Gateway</span>
+                        {% elif log.source == 'secure_chat' %}
+                        <span class="badge badge-cached">Secure Chat</span>
+                        {% elif log.source == 'file_chat' %}
+                        <span class="badge badge-success">File Chat</span>
+                        {% else %}
+                        <span class="badge">{{ log.get_source_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.status == 'success' %}<span class="badge badge-success">✓ Success</span>
+                        {% elif log.status == 'cached' %}<span class="badge badge-cached">⚡ Cached</span>
+                        {% else %}<span class="badge badge-error">✗ Error</span>{% endif %}
+                    </td>
+                    <td class="font-mono text-sm" style="color:var(--text-secondary);">
+                        {% with tl=log.tokens_original|format_tokens %}
+                        {{ tl }}
+                        {% endwith %}
+                    </td>
+                    <td class="font-mono text-sm" style="color:var(--accent-green);">
+                        {% with tc=log.tokens_compressed|format_tokens %}
+                        {{ tc }}
+                        {% endwith %}
+                    </td>
+                    <td class="font-medium" style="color:var(--accent-amber);">{{ log.savings_percentage }}%</td>
+                    <td class="font-medium" style="color:var(--accent-green);">
+                        {% with cost=log.cost_saved|format_cost %}
+                        {{ cost }}
+                        {% endwith %}
+                    </td>
+                    <td class="font-mono text-sm" style="color:var(--text-secondary);">
+                        {% with lat=log.latency_ms|format_latency %}
+                        {{ lat }}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if log.cache_hit %}
+                        <span class="text-xs font-semibold" style="color:var(--accent-amber);">HIT</span>
+                        {% else %}
+                        <span class="text-xs opacity-40" style="color:var(--text-muted);">MISS</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-16">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            style="background:var(--bg-glass);">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-muted);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-semibold mb-2" style="color:var(--text-secondary);">No Audit Logs Yet</h3>
+        <p class="text-sm" style="color:var(--text-muted);">Logs appear here when requests pass through the gateway.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

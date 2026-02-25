@@ -1,0 +1,414 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Secure Chat{% endblock %}
+
+{% block dashboard_content %}
+<div class="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-6">
+
+    <!-- Left Sidebar: Knowledge Base & Settings -->
+    <div class="w-full lg:w-80 flex flex-col gap-4 flex-shrink-0 transition-transform duration-300" id="chatSidebar">
+        <!-- New Chat Btn -->
+        <button onclick="window.location.reload()"
+            class="btn-gradient w-full py-3 inline-flex items-center justify-center gap-2 shadow-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            New Secure Chat
+        </button>
+
+        <!-- Provide Selector Removed -->
+
+        <!-- Document Knowledge Base -->
+        <div class="glass-card flex-1 flex flex-col overflow-hidden">
+            <div class="p-4 border-b" style="border-color:var(--border-glass);">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-xs font-bold uppercase tracking-widest" style="color:var(--text-muted);">
+                        Knowledge Base
+                    </h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-bold"
+                        style="background:rgba(250,185,91,0.15); color:var(--accent-amber);">
+                        {{ files.count }} files
+                    </span>
+                </div>
+                <p class="text-[11px]" style="color:var(--text-secondary);">Select context for this chat</p>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                {% for file in files %}
+                <label class="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors hover:bg-white/5"
+                    style="border:1px solid transparent;" onmouseover="this.style.borderColor='var(--border-glass)'"
+                    onmouseout="this.style.borderColor='transparent'">
+                    <input type="checkbox" name="kb_files" value="{{ file.id }}" class="mt-1 w-4 h-4 rounded"
+                        style="accent-color:var(--accent-amber);">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold truncate" style="color:var(--text-primary);">
+                            {{ file.filename|file_icon }} {{ file.filename }}
+                        </div>
+                        <div class="text-[10px] mt-0.5" style="color:var(--accent-steel);">
+                            {{ file.file_size|format_bytes }} · Indexed
+                        </div>
+                    </div>
+                </label>
+                {% empty %}
+                <div class="p-4 text-center">
+                    <p class="text-xs" style="color:var(--text-muted);">
+                        No files in Knowledge Base.<br>
+                        Upload in <a href="{% url 'dashboard:file_analysis' %}" class="underline hover:text-white"
+                            style="color:var(--accent-amber);">File Analysis</a>.
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Chat Sessions -->
+        {% if chat_sessions %}
+        <div class="glass-card flex flex-col overflow-hidden" style="max-height:220px;">
+            <div class="p-3 border-b flex items-center justify-between flex-shrink-0"
+                style="border-color:var(--border-glass);">
+                <h3 class="text-xs font-bold uppercase tracking-widest" style="color:var(--text-muted);">Recent Chats
+                </h3>
+                <span class="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                    style="background:rgba(84,119,146,0.15); color:var(--accent-steel);">{{ chat_sessions|length
+                    }}</span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-1 space-y-0.5">
+                {% for sess in chat_sessions %}
+                <button onclick="loadSession('{{ sess.id }}')"
+                    class="w-full text-left px-3 py-2 rounded-lg text-xs truncate transition-colors hover:bg-white/5 session-btn"
+                    style="color:var(--text-secondary); border:1px solid transparent;" data-session-id="{{ sess.id }}"
+                    onmouseover="this.style.borderColor='var(--border-glass)'"
+                    onmouseout="this.style.borderColor='transparent'">
+                    <span class="font-semibold block truncate" style="color:var(--text-primary);">{{
+                        sess.title|truncatechars:40 }}</span>
+                    <span style="color:var(--text-muted);">{{ sess.updated_at|timesince }} ago</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Privacy Guard Badges -->
+        <div class="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider">
+            {% if privacy_config.ai_detection_enabled %}
+            <div class="px-2 py-1 rounded border flex items-center gap-1"
+                style="background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.3); color:var(--accent-green);">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                AI PII Masking
+            </div>
+            {% endif %}
+            <div class="px-2 py-1 rounded border flex items-center gap-1"
+                style="background:rgba(250,185,91,0.1); border-color:rgba(250,185,91,0.3); color:var(--accent-amber);">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Compression
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 glass-card flex flex-col relative overflow-hidden shadow-xl"
+        style="border-color:var(--border-glass);">
+
+        <!-- Chat Header (Mobile Toggle) -->
+        <div class="lg:hidden p-3 border-b flex items-center justify-between"
+            style="border-color:var(--border-glass); background:var(--bg-secondary);">
+            <div class="font-bold text-sm" style="color:var(--text-primary);">Secure Chat</div>
+            <button onclick="document.getElementById('chatSidebar').classList.toggle('hidden')"
+                class="btn-secondary text-xs px-3 py-1.5">
+                Toggle Context
+            </button>
+        </div>
+
+        <!-- Messages Area -->
+        <div id="messagesArea" class="flex-1 overflow-y-auto p-6 space-y-6" style="background:var(--bg-primary);">
+            <!-- Welcome placeholder -->
+            <div class="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto opacity-70"
+                id="emptyState">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-glow"
+                    style="background:var(--gradient-primary); color:var(--text-inverse);">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2" style="color:var(--text-primary);">Secure Generative AI Chat</h3>
+                <p class="text-sm leading-relaxed" style="color:var(--text-muted);">
+                    All messages and selected context files are automatically compressed and PII-masked before securely
+                    routing to your chosen provider.
+                </p>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t" style="border-color:var(--border-glass); background:var(--bg-secondary);">
+            <form id="chatForm" class="relative max-w-4xl mx-auto flex flex-col gap-2">
+                {% csrf_token %}
+
+                <div id="liveStats"
+                    class="absolute -top-10 right-4 text-[10px] font-mono font-bold hidden items-center gap-3 px-3 py-1.5 rounded-lg border shadow-sm backdrop-blur whitespace-nowrap"
+                    style="background:rgba(26,50,99,0.9); border-color:var(--border-glass); color:var(--text-secondary);">
+                    <span style="color:var(--accent-steel);" title="Stage 1 Context Synthesizer">S1:</span>
+                    <span id="statTokensS1" style="color:var(--accent-steel);">0→0</span>
+                    <span class="opacity-30">|</span>
+                    <span style="color:var(--accent-amber);" title="Middle AI Payload">MID:</span>
+                    <span id="statTokensMid" style="color:var(--accent-amber);">0 In / 0 Out</span>
+                    <span class="opacity-30">|</span>
+                    <span style="color:var(--accent-steel);" title="Stage 3 Output Expander">S3:</span>
+                    <span id="statTokensS3" style="color:var(--accent-steel);">0→0</span>
+                    <span class="opacity-30">|</span>
+                    <span style="color:var(--accent-green);" title="Financial Efficiency vs Claude Opus">Saved:</span>
+                    <span id="statEfficiency" style="color:var(--accent-green);">0%</span>
+                    <span class="opacity-30">|</span>
+                    <span id="statLatency" style="color:var(--text-muted);">0ms</span>
+                </div>
+
+                <div class="relative flex items-end gap-2">
+                    <textarea id="messageInput" rows="1" placeholder="Send a secure message to the AI..." required
+                        class="w-full pl-5 pr-14 py-4 rounded-2xl text-sm leading-relaxed resize-none overflow-hidden fi-input"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary); transition:height 0.2s;"
+                        oninput="this.style.height = '';this.style.height = Math.min(this.scrollHeight, 200) + 'px'"></textarea>
+
+                    <button type="submit" id="sendBtn"
+                        class="absolute right-2 bottom-2 w-10 h-10 rounded-xl flex items-center justify-center transition-transform hover:scale-105 shadow-md disabled:opacity-50 disabled:hover:scale-100"
+                        style="background:var(--gradient-primary); color:white;">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="text-[10px] text-center" style="color:var(--text-muted);">
+                    Firma-KI transparently processes requests for optimization and data privacy.
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('messageInput');
+    const messagesArea = document.getElementById('messagesArea');
+    const emptyState = document.getElementById('emptyState');
+    const sendBtn = document.getElementById('sendBtn');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    let currentSessionId = null;
+
+    // Restore session from URL on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSession = urlParams.get('session');
+    if (urlSession) {
+        currentSessionId = urlSession;
+        loadSession(urlSession);
+    }
+
+    async function loadSession(sessionId) {
+        try {
+            // Highlight active session
+            document.querySelectorAll('.session-btn').forEach(b => {
+                b.style.background = b.dataset.sessionId === sessionId
+                    ? 'rgba(250,185,91,0.1)' : '';
+                b.style.borderColor = b.dataset.sessionId === sessionId
+                    ? 'rgba(250,185,91,0.25)' : 'transparent';
+            });
+
+            const res = await fetch(`/dashboard/api/chat-history/?session_id=${sessionId}`, {
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            currentSessionId = data.session_id;
+            window.history.replaceState({}, '', `?session=${currentSessionId}`);
+
+            // Clear and render history
+            messagesArea.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'none';
+
+            data.messages.forEach(m => {
+                if (m.role === 'system') return;
+                // Django backend uses 'ai' for AI messages
+                appendMessage(m.role === 'ai' ? 'assistant' : 'user', m.content);
+            });
+
+            scrollToBottom();
+        } catch (e) {
+            console.error('Failed to load session:', e);
+        }
+    }
+
+    // Auto-resize on enter, submit on shift+enter
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (input.value.trim().length > 0) form.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
+
+        // Collect context files
+        const selectedFiles = Array.from(document.querySelectorAll('input[name="kb_files"]:checked')).map(cb => cb.value);
+
+        if (emptyState) emptyState.style.display = 'none';
+
+        // Add user message
+        appendMessage('user', message);
+        input.value = '';
+        input.style.height = '';
+
+        // Add pending typing indicator
+        const typingId = 'typing-' + Date.now();
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div id="${typingId}" class="flex gap-4 items-start max-w-3xl animate-fade-in">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm animate-pulse"
+                    style="background:var(--bg-glass); color:var(--text-muted); border:1px solid var(--border-glass);">...</div>
+                <div class="px-4 py-3 rounded-2xl rounded-tl-none text-sm animate-pulse shadow-sm"
+                    style="background:var(--bg-glass); border:1px solid var(--border-glass); color:var(--text-muted);">
+                    Gateway optimizing & routing request...
+                </div>
+            </div>
+        `);
+        scrollToBottom();
+
+        // Disable input
+        input.disabled = true;
+        sendBtn.disabled = true;
+        document.getElementById('liveStats').classList.add('hidden');
+
+        try {
+            const res = await fetch(`/dashboard/api/secure-chat/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    message: message,
+                    file_ids: selectedFiles,
+                    session_id: currentSessionId || undefined
+                })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                document.getElementById(typingId).remove();
+                appendMessage('error', 'Gateway Error: ' + errText);
+                return;
+            }
+
+            document.getElementById(typingId).remove();
+            const messageDiv = appendMessage('assistant', '');
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let fullText = "";
+            let sessionIdFromHeader = res.headers.get('X-Session-Id');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                fullText += chunk;
+
+                if (fullText.includes('__METRICS__')) {
+                    const parts = fullText.split('__METRICS__');
+                    messageDiv.textContent = parts[0];
+                    try {
+                        const metrics = JSON.parse(parts[1]);
+                        // Extract session_id if embedded
+                        if (metrics.session_id && !currentSessionId) {
+                            currentSessionId = metrics.session_id;
+                            window.history.replaceState({}, '', `?session=${currentSessionId}`);
+                        }
+                        const stats = document.getElementById('liveStats');
+                        document.getElementById('statTokensS1').textContent = `${metrics.tokens_original}→${metrics.tokens_compressed}`;
+                        document.getElementById('statTokensMid').textContent = `${metrics.tokens_compressed} in / ${metrics.output_tokens_compressed} out`;
+                        document.getElementById('statTokensS3').textContent = `${metrics.output_tokens_compressed}→${metrics.output_tokens_original}`;
+                        document.getElementById('statEfficiency').textContent = `${metrics.financial_efficiency_pct}%`;
+                        document.getElementById('statLatency').textContent = `${metrics.latency_ms}ms`;
+                        stats.classList.remove('hidden');
+                    } catch (e) { }
+                } else {
+                    messageDiv.textContent = fullText;
+                }
+                scrollToBottom();
+            }
+        } catch (err) {
+            console.error(err);
+            const typingEl = document.getElementById(typingId);
+            if (typingEl) typingEl.remove();
+            appendMessage('error', 'Network error connecting to Firma-KI gateway.');
+        } finally {
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+
+            // Update session id from response header if available
+            if (!currentSessionId && sessionIdFromHeader) {
+                currentSessionId = sessionIdFromHeader;
+                window.history.replaceState({}, '', `?session=${currentSessionId}`);
+            }
+        }
+    });
+
+    function appendMessage(role, text) {
+        let avatarStyle = '';
+        let avatarText = '';
+        let bubbleStyle = '';
+        let rowClass = 'flex gap-4 items-start max-w-4xl mx-auto w-full animate-fade-in ';
+        let borderRadius = '';
+
+        if (role === 'user') {
+            avatarStyle = 'background:var(--bg-glass); border:1px solid var(--border-glass); color:var(--text-primary);';
+            avatarText = 'U';
+            bubbleStyle = 'background:rgba(250,185,91,0.08); border:1px solid rgba(250,185,91,0.2); color:var(--text-primary);';
+            rowClass += 'flex-row-reverse';
+            borderRadius = 'rounded-2xl rounded-tr-none';
+        } else if (role === 'error') {
+            avatarStyle = 'background:rgba(248,113,113,0.15); border:1px solid rgba(248,113,113,0.3); color:var(--accent-red);';
+            avatarText = '!';
+            bubbleStyle = 'background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25); color:var(--accent-red);';
+            borderRadius = 'rounded-2xl rounded-tl-none font-mono';
+        } else {
+            avatarStyle = 'background:var(--gradient-primary); color:white; box-shadow:0 0 15px rgba(250,185,91,0.3);';
+            avatarText = 'AI';
+            bubbleStyle = 'background:var(--bg-glass); border:1px solid var(--border-glass); color:var(--text-primary);';
+            borderRadius = 'rounded-2xl rounded-tl-none';
+        }
+
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div class="${rowClass}">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm"
+                    style="${avatarStyle}">${avatarText}</div>
+                <div class="px-5 py-3.5 ${borderRadius} text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words message-content"
+                    style="${bubbleStyle}">${escapeHtml(text)}</div>
+            </div>
+        `);
+        scrollToBottom();
+        return messagesArea.lastElementChild.querySelector('.message-content');
+    }
+
+    function scrollToBottom() {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || "").toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+</script>
+{% endblock %}

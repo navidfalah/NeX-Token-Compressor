@@ -1,0 +1,138 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Team & Access{% endblock %}
+
+{% block dashboard_content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Team & Access Management</h1>
+    <p style="color:var(--text-secondary);">Manage who has access to your organization and their roles.</p>
+</div>
+
+<!-- Members Table -->
+<div class="glass-card overflow-hidden mb-6">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Email</th>
+                <th class="text-center">API Keys</th>
+                <th class="text-center">Requests</th>
+                <th>Last Login</th>
+                <th>Last Activity</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ms in member_stats %}
+            <tr>
+                <td>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                            style="background:var(--gradient-primary);">
+                            {{ ms.user.first_name.0 }}{{ ms.user.last_name.0 }}
+                        </div>
+                        <div>
+                            <div class="font-medium" style="color:var(--text-primary);">
+                                {{ ms.user.first_name|default:"—" }} {{ ms.user.last_name|default:"—" }}
+                            </div>
+                            <div class="text-xs" style="color:var(--text-muted);">
+                                @{{ ms.user.username|default:"—" }}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if ms.user.role == 'owner' %}
+                    <span class="badge badge-active">Owner</span>
+                    {% else %}
+                    <span class="badge badge-success">User</span>
+                    {% endif %}
+                </td>
+                <td class="text-sm" style="color:var(--text-secondary);">{{ ms.user.email|default_if_none:"—" }}</td>
+                <td class="text-center font-medium" style="color:var(--text-primary);">
+                    {{ ms.active_keys|default:"0" }}
+                </td>
+                <td class="text-center font-medium" style="color:var(--text-primary);">
+                    {{ ms.requests|default:"0" }}
+                </td>
+                <td class="text-xs" style="color:var(--text-muted);">
+                    {{ ms.user.last_login|timesince_short|default:"Never" }}
+                </td>
+                <td class="text-xs" style="color:var(--text-muted);">
+                    {{ ms.user.last_activity|timesince_short|default:"—" }}
+                </td>
+                <td>
+                    {% if ms.user != request.user %}
+                    <div class="flex gap-1">
+                        <form method="post" class="inline">{% csrf_token %}
+                            <input type="hidden" name="action" value="change_role">
+                            <input type="hidden" name="user_id" value="{{ ms.user.id }}">
+                            {% if ms.user.role == 'user' %}
+                            <input type="hidden" name="role" value="owner">
+                            <button type="submit" class="btn-secondary text-xs px-2 py-1">→ Owner</button>
+                            {% else %}
+                            <input type="hidden" name="role" value="user">
+                            <button type="submit" class="btn-secondary text-xs px-2 py-1">→ User</button>
+                            {% endif %}
+                        </form>
+                        <form method="post" class="inline" onsubmit="return confirm('Deactivate this user?')">{%
+                            csrf_token %}
+                            <input type="hidden" name="action" value="remove_user">
+                            <input type="hidden" name="user_id" value="{{ ms.user.id }}">
+                            <button type="submit" class="btn-danger text-xs px-2 py-1">Remove</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <span class="text-xs font-medium" style="color:var(--text-muted);">You</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pending Invitations -->
+{% if invitations %}
+<div class="glass-card p-6">
+    <h3 class="text-lg font-bold mb-4" style="color:var(--text-primary);">Pending Invitations</h3>
+    <div class="space-y-3">
+        {% for inv in invitations %}
+        <div class="flex items-center justify-between p-3 rounded-xl"
+            style="background:var(--code-bg); border:1px solid var(--border-glass);">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center"
+                    style="background:rgba(250,185,91,0.15);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="color:var(--accent-amber);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <span class="text-sm font-medium" style="color:var(--text-primary);">
+                        {{ inv.email|default:"—" }}
+                    </span>
+                    <span class="text-xs ml-2" style="color:var(--text-muted);">
+                        Invited {{ inv.created_at|timesince_short|default:"Unknown" }}
+                    </span>
+                </div>
+            </div>
+            <span class="badge badge-cached">Pending</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Invite link -->
+<div class="mt-6">
+    <a href="{% url 'accounts:invite' %}" class="btn-gradient text-sm px-6 py-2.5 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Invite New Member
+    </a>
+</div>
+{% endblock %}

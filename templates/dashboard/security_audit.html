@@ -1,0 +1,190 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load dashboard_tags %}
+{% block title %}Security Audit & Config - Firma-KI{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <!-- Header -->
+    <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center glow"
+                    style="background:var(--gradient-primary); color:white;">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                </div>
+                Security & Data Audit
+            </h1>
+            <p class="text-base" style="color:var(--text-secondary);">Manage API Key encryption rules and audit specific
+                PII data stripped from recent interactions.</p>
+        </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Left Column: API Key Rules Configuration -->
+        <div class="lg:col-span-1 space-y-6">
+            <h2 class="text-xl font-bold mb-4" style="color:var(--text-primary);">API Key Config Defaults</h2>
+
+            {% for key in api_keys %}
+            <div class="glass-card p-5 relative overflow-hidden group">
+                <div
+                    class="absolute right-0 top-0 w-24 h-24 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none">
+                </div>
+
+                <div class="flex items-center justify-between mb-4 relative z-10">
+                    <div>
+                        <div class="font-bold text-lg" style="color:var(--text-primary);">{{ key.name }}</div>
+                        <div class="text-xs font-mono mt-1 px-2 py-0.5 rounded inline-block"
+                            style="background:rgba(232,226,219,0.1); color:var(--cream);">
+                            {{ key.masked_key }}
+                        </div>
+                    </div>
+                    {% if key.is_active %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-warning">Inactive</span>
+                    {% endif %}
+                </div>
+
+                <form method="POST" action="{% url 'dashboard:security_audit' %}" class="space-y-4 relative z-10">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_security_config">
+                    <input type="hidden" name="key_id" value="{{ key.id }}">
+
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer group/label">
+                            <div class="relative flex items-center bg-gray-800 rounded-full h-5 w-9 transition-colors border"
+                                style="border-color:var(--border-glass);">
+                                <!-- prettier-ignore -->
+                                <input type="checkbox" name="enable_pii_masking" class="sr-only peer" {{
+                                    key.enable_pii_masking|yesno:"checked," }}>
+                                <div
+                                    class="w-full h-full rounded-full transition-colors peer-checked:bg-[var(--accent-green)]/30">
+                                </div>
+                                <div
+                                    class="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow">
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium group-hover/label:text-white transition-colors"
+                                style="color:var(--text-secondary);">Enforce GDPR PII Masking</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 cursor-pointer group/label">
+                            <div class="relative flex items-center bg-gray-800 rounded-full h-5 w-9 transition-colors border"
+                                style="border-color:var(--border-glass);">
+                                <!-- prettier-ignore -->
+                                <input type="checkbox" name="enable_compression" class="sr-only peer" {{
+                                    key.enable_compression|yesno:"checked," }}>
+                                <div
+                                    class="w-full h-full rounded-full transition-colors peer-checked:bg-[var(--accent-amber)]/30">
+                                </div>
+                                <div
+                                    class="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4 shadow">
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium group-hover/label:text-white transition-colors"
+                                style="color:var(--text-secondary);">Enforce Semantic Compression</span>
+                        </label>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full py-2 px-4 rounded-lg text-sm font-bold mt-2 transition-all opacity-80 hover:opacity-100"
+                        style="background:rgba(84,119,146,0.1); color:var(--text-primary); border:1px solid rgba(84,119,146,0.2);">
+                        Update Rules
+                    </button>
+                </form>
+            </div>
+            {% empty %}
+            <div class="p-4 rounded-xl border border-dashed text-center"
+                style="border-color:var(--border-glass); color:var(--text-muted);">
+                No API keys found.
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Right Column: Audit Trail Table -->
+        <div class="lg:col-span-2 space-y-6">
+            <h2 class="text-xl font-bold mb-4" style="color:var(--text-primary);">Data Modification Audit Trail</h2>
+
+            <div class="glass-card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-xs uppercase"
+                            style="background:rgba(0,0,0,0.2); color:var(--text-muted); border-bottom:1px solid var(--border-glass);">
+                            <tr>
+                                <th class="px-4 py-4 font-semibold tracking-wider">Timestamp</th>
+                                <th class="px-4 py-4 font-semibold tracking-wider">Source</th>
+                                <th class="px-4 py-4 font-semibold tracking-wider">Cost Efficiency</th>
+                                <th class="px-4 py-4 font-semibold tracking-wider">Middle AI</th>
+                                <th class="px-4 py-4 font-semibold tracking-wider w-1/4">Data Removed (GDPR)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y" style="divide-color:var(--border-glass);">
+                            {% for log in logs %}
+                            <tr class="hover:bg-black/10 transition-colors">
+                                <td class="px-4 py-4 whitespace-nowrap" style="color:var(--text-secondary);">
+                                    {{ log.timestamp|date:"M d, H:i:s" }}
+                                </td>
+                                <td class="px-4 py-4">
+                                    <div class="font-medium" style="color:var(--cream);">{{ log.source_label }}</div>
+                                    <div class="text-xs font-mono mt-1 opacity-70">{{ log.api_key_masked }}</div>
+                                </td>
+                                <td class="px-4 py-4">
+                                    {% if log.cost_saved > 0 %}
+                                    <span class="badge badge-warning flex items-center w-max gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                            </path>
+                                        </svg>
+                                        {{ log.cost_saved|format_cost }} Saved ({{ log.compression_ratio }}%)
+                                    </span>
+                                    {% else %}
+                                    <span class="text-xs" style="color:var(--text-muted);">Bypassed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-4">
+                                    <div class="text-xs font-mono" style="color:var(--accent-amber);">
+                                        {{ log.tokens_compressed }} in / {{ log.tokens_response }} out
+                                    </div>
+                                </td>
+                                <td class="px-4 py-4">
+                                    {% if log.stripped_tags %}
+                                    <div class="flex flex-wrap gap-1.5">
+                                        {% for tag in log.stripped_tags %}
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded border"
+                                            style="background:rgba(235,87,87,0.1); color:var(--accent-red); border-color:rgba(235,87,87,0.2);">
+                                            {{ tag }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <span class="text-xs italic" style="color:var(--text-muted);">No PII detected in
+                                        payload</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-12 text-center text-sm" style="color:var(--text-muted);">
+                                    <svg class="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                        </path>
+                                    </svg>
+                                    No audit logs available yet. Make a request via the Security Playground.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

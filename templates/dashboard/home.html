@@ -1,0 +1,472 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-1" style="color:var(--text-primary);">Executive Overview</h1>
+        <p style="color:var(--text-secondary);">Real-time analytics across all AI providers.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted);">Range</span>
+        <a href="?days=7"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all {% if days == 7 %}btn-gradient{% endif %}"
+            style="{% if days != 7 %}color:var(--text-secondary);background:var(--bg-glass);{% endif %}">7d</a>
+        <a href="?days=30"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all {% if days == 30 %}btn-gradient{% endif %}"
+            style="{% if days != 30 %}color:var(--text-secondary);background:var(--bg-glass);{% endif %}">30d</a>
+        <a href="?days=90"
+            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all {% if days == 90 %}btn-gradient{% endif %}"
+            style="{% if days != 90 %}color:var(--text-secondary);background:var(--bg-glass);{% endif %}">90d</a>
+    </div>
+</div>
+
+<!-- Live pulse -->
+<div class="flex items-center gap-2 mb-6">
+    <span class="w-2 h-2 rounded-full animate-pulse-glow" style="background:var(--accent-green);"></span>
+    <span class="text-xs font-medium" style="color:var(--text-muted);" id="liveIndicator">Live — updating every
+        5s</span>
+</div>
+
+<!-- NEX Cost Efficiency Banner -->
+<div class="mb-6 p-4 rounded-2xl"
+    style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.07),rgba(99,102,241,0.07)); border:1px solid rgba(16,185,129,0.2);">
+    <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:linear-gradient(135deg,#10b981,#06b6d4);">
+                <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <div>
+                <div class="text-sm font-bold" style="color:#34d399;">NEX Bytecode Pipeline — Active</div>
+                <div class="text-xs" style="color:rgba(52,211,153,0.6);">Two-stage compression running on all endpoints
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-6 ml-auto">
+            <div class="text-center">
+                <div class="text-xl font-bold" style="color:var(--accent-steel);">
+                    {{ metrics.total_tokens_original|default:"0"|format_tokens }}
+                    <span class="text-sm font-normal" style="color:var(--text-muted);">→</span>
+                    {{ metrics.total_tokens_compressed|default:"0"|format_tokens }}
+                </div>
+                <div class="text-xs" style="color:var(--text-muted);">S1: Original → Compressed ({{ days }}d)
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-xl font-bold" style="color:var(--accent-amber);">
+                    {{ metrics.middle_ai_input|default:"0"|format_tokens }}
+                    <span class="text-sm font-normal" style="color:var(--text-muted);">In</span>
+                    /
+                    {{ metrics.middle_ai_output|default:"0"|format_tokens }}
+                    <span class="text-sm font-normal" style="color:var(--text-muted);">Out</span>
+                </div>
+                <div class="text-xs" style="color:var(--text-muted);">Middle AI Payload ({{ days }}d)</div>
+            </div>
+            <div class="text-center">
+                <div class="text-xl font-bold" style="color:var(--accent-cyan);">{{ metrics.financial_efficiency_pct }}%
+                </div>
+                <div class="text-xs" style="color:var(--text-muted);">Cost Savings vs Opus</div>
+            </div>
+            <div class="text-xl font-bold" style="color:var(--accent-green);">
+                €{% with cost=metrics.total_cost_saved|default:"0"|format_cost %}{{ cost }}{% endwith %}
+            </div>
+            <div class="text-xs" style="color:var(--text-muted);">Total Saved ({{ days }}d)</div>
+        </div>
+    </div>
+</div>
+<!-- Compression progress bar -->
+{% if metrics.compression_ratio > 0 %}
+<div class="mt-3">
+    <div class="flex justify-between text-xs mb-1" style="color:rgba(52,211,153,0.6);">
+        <span>Compression efficiency</span>
+        <span>{{ metrics.compression_ratio }}% token reduction</span>
+    </div>
+    <div class="w-full rounded-full h-1.5" style="background:rgba(255,255,255,0.08);">
+        <div class="h-1.5 rounded-full transition-all"
+            style="width:{{ metrics.compression_ratio }}%; background:linear-gradient(90deg,#10b981,#06b6d4);">
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+
+<!-- Metric Cards -->
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="metric-card">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:rgba(84,119,146,0.15);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-steel);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            </div>
+            <span class="metric-label">Total Requests</span>
+        </div>
+        <div class="metric-value" style="color:var(--accent-steel);" id="metricRequests">
+            {% with reqs=metrics.total_requests|default:"0" %}
+            {{ reqs }}
+            {% endwith %}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(74,222,128,0.1);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-green);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <span class="metric-label">Cost Saved</span>
+        </div>
+        <div class="metric-value" style="color:var(--accent-green);">
+            {% with cost=metrics.total_cost_saved|default:"0"|format_cost %}
+            {{ cost }}
+            {% endwith %}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:rgba(250,185,91,0.12);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-amber);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <span class="metric-label">Compression</span>
+        </div>
+        <div class="metric-value gradient-text">
+            {% with comp=metrics.compression_ratio|default:"0" %}
+            {{ comp }}%
+            {% endwith %}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(26,50,99,0.3);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-cream);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <span class="metric-label">Cache Hit Rate</span>
+        </div>
+        <div class="metric-value" style="color:var(--text-primary);">
+            {% with hit=metrics.cache_hit_rate|default:"0" %}
+            {{ hit }}%
+            {% endwith %}
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid lg:grid-cols-2 gap-6 mb-8">
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+            Requests / min (Live)
+        </h3>
+        <canvas id="liveRequestChart" height="200"></canvas>
+    </div>
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+            Token Consumption ({{ days }}d)
+        </h3>
+        <canvas id="tokenChart" height="200"></canvas>
+    </div>
+</div>
+
+<!-- Per-Provider Stats -->
+{% if providers %}
+<div class="glass-card p-6 mb-8">
+    <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+        Requests per AI Provider (Live)
+    </h3>
+    <canvas id="providerChart" height="150"></canvas>
+</div>
+{% endif %}
+
+<!-- Quick Stats & Recent Activity -->
+<div class="grid lg:grid-cols-3 gap-6 mb-8">
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Quick Stats</h3>
+        <div class="space-y-4">
+            {% with m=metrics %}
+            <div class="flex justify-between items-center">
+                <span style="color:var(--text-secondary);">Original Tokens (S1 In)</span>
+                {% with val=m.total_tokens_original|default:"0"|format_tokens %}
+                <span class="font-bold" style="color:var(--text-primary);">{{ val }}</span>
+                {% endwith %}
+            </div>
+            <div class="flex justify-between items-center">
+                <span style="color:var(--text-secondary);">Compressed Tokens (S1 Out)</span>
+                {% with val=m.total_tokens_compressed|default:"0"|format_tokens %}
+                <span class="font-bold" style="color:var(--accent-green);">{{ val }}</span>
+                {% endwith %}
+            </div>
+            <div class="flex justify-between items-center">
+                <span style="color:var(--accent-amber);">Middle AI Input</span>
+                {% with val=m.middle_ai_input|default:"0"|format_tokens %}
+                <span class="font-bold" style="color:var(--accent-amber);">{{ val }}</span>
+                {% endwith %}
+            </div>
+            <div class="flex justify-between items-center">
+                <span style="color:var(--accent-amber);">Middle AI Output</span>
+                {% with val=m.middle_ai_output|default:"0"|format_tokens %}
+                <span class="font-bold" style="color:var(--accent-amber);">{{ val }}</span>
+                {% endwith %}
+            </div>
+            <div class="flex justify-between items-center">
+                <span style="color:var(--text-secondary);">Cost Efficiency</span>
+                <span class="font-bold gradient-text">{{ m.financial_efficiency_pct }}%</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span style="color:var(--text-secondary);">Avg Latency</span>
+                {% with val=m.avg_latency|default:"0.0"|format_latency %}
+                <span class="font-bold" style="color:var(--accent-cyan);">{{ val }}</span>
+                {% endwith %}
+            </div>
+            {% endwith %}
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Recent Activity
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Provider</th>
+                        <th>Input Compression</th>
+                        <th>Middle AI Load</th>
+                        <th>Saved</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs|slice:":10" %}
+                    <tr class="cursor-pointer" onclick="window.location='{% url 'dashboard:audit_detail' log.id %}'">
+                        {% with ts=log.timestamp|timesince_short %}
+                        <td class="text-xs font-mono" style="color:var(--text-muted);">{{ ts }}</td>
+                        {% endwith %}
+                        <td>
+                            {% if log.status == 'success' %}
+                            <span class="badge badge-success">✓</span>
+                            {% elif log.status == 'cached' %}
+                            <span class="badge badge-cached">⚡</span>
+                            {% else %}
+                            <span class="badge badge-error">✗</span>
+                            {% endif %}
+                        </td>
+                        {% with p_name=log.ai_provider.name|default:"Default" %}
+                        <td class="text-xs" style="color:var(--text-secondary);">{{ p_name }}</td>
+                        {% endwith %}
+                        <td class="text-xs font-mono" style="color:var(--text-secondary);">
+                            {% with orig=log.tokens_original|default:"0"|format_tokens %}
+                            {% with comp=log.tokens_compressed|default:"0"|format_tokens %}
+                            {{ orig }} → <span style="color:var(--accent-green);">{{ comp }}</span>
+                            {% endwith %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-xs font-mono" style="color:var(--accent-amber);">
+                            {% with t_in=log.tokens_compressed|default:"0"|format_tokens %}
+                            {% with t_out=log.tokens_response|default:"0"|format_tokens %}
+                            <span title="Tokens In">{{ t_in }}</span> / <span title="Tokens Out">{{ t_out }}</span>
+                            {% endwith %}
+                            {% endwith %}
+                        </td>
+                        {% with saved=log.cost_saved|default:"0"|format_cost %}
+                        <td class="text-xs font-semibold" style="color:var(--accent-green);">{{ saved }}</td>
+                        {% endwith %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-8" style="color:var(--text-muted);">No activity yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Per-User Token Usage -->
+{% if user_stats %}
+<div class="glass-card p-6 mb-8">
+    <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+        Token Usage per User
+    </h3>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Original Tokens</th>
+                    <th>Compressed Tokens</th>
+                    <th>Generated Tokens</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in user_stats %}
+                <tr>
+                    <td class="font-semibold" style="color:var(--text-primary);">
+                        {{ u.user__first_name }} {{ u.user__last_name }}
+                    </td>
+                    <td class="text-sm" style="color:var(--text-secondary);">
+                        {{ u.user__email }}
+                    </td>
+                    <td class="text-sm font-mono" style="color:var(--text-secondary);">
+                        {% with val=u.tokens_original|default:"0"|format_tokens %}
+                        {{ val }}
+                        {% endwith %}
+                    </td>
+                    <td class="text-sm font-mono" style="color:var(--accent-green);">
+                        {% with val=u.tokens_compressed|default:"0"|format_tokens %}
+                        {{ val }}
+                        {% endwith %}
+                    </td>
+                    <td class="text-sm font-mono" style="color:var(--accent-amber);">
+                        {% with val=u.tokens_response|default:"0"|format_tokens %}
+                        {{ val }}
+                        {% endwith %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Palette
+    const AMBER = '#FAB95B';
+    const STEEL = '#547792';
+    const NAVY = '#1A3263';
+    const CREAM = '#E8E2DB';
+    const GREEN = '#4ade80';
+    const RED = '#f87171';
+
+    const rootStyle = getComputedStyle(document.documentElement);
+    const textMuted = rootStyle.getPropertyValue('--text-muted').trim() || STEEL;
+    Chart.defaults.color = textMuted;
+    Chart.defaults.borderColor = 'rgba(84,119,146,0.12)';
+
+    // Token Consumption Chart
+    const dailyStats = {{ daily_stats_json| safe }};
+    new Chart(document.getElementById('tokenChart'), {
+        type: 'bar',
+        data: {
+            labels: dailyStats.map(d => d.date.slice(5)),
+            datasets: [
+                {
+                    label: 'Original',
+                    data: dailyStats.map(d => d.tokens_original),
+                    backgroundColor: 'rgba(84,119,146,0.35)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Compressed',
+                    data: dailyStats.map(d => d.tokens_compressed),
+                    backgroundColor: 'rgba(250,185,91,0.45)',
+                    borderRadius: 4,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top', labels: { color: textMuted, font: { size: 11 } } } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
+        }
+    });
+
+    // Live Request Chart
+    const liveCtx = document.getElementById('liveRequestChart');
+    const liveChart = new Chart(liveCtx, {
+        type: 'line',
+        data: {
+            labels: Array(60).fill(''),
+            datasets: [{
+                label: 'Requests/min',
+                data: Array(60).fill(0),
+                borderColor: AMBER,
+                backgroundColor: 'rgba(250,185,91,0.08)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: { duration: 300 },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: { beginAtZero: true, grid: { color: 'rgba(84,119,146,0.08)' } }
+            }
+        }
+    });
+
+    // Provider chart
+    {% if providers %}
+    const providerStats = {{ provider_stats_json| safe }};
+    const providerColors = [AMBER, STEEL, GREEN, RED, CREAM, '#a78bfa'];
+    new Chart(document.getElementById('providerChart'), {
+        type: 'bar',
+        data: {
+            labels: providerStats.map(p => p.name),
+            datasets: [{
+                label: 'Requests',
+                data: providerStats.map(p => p.requests),
+                backgroundColor: providerStats.map((_, i) => providerColors[i % providerColors.length] + '55'),
+                borderColor: providerStats.map((_, i) => providerColors[i % providerColors.length]),
+                borderWidth: 1,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, grid: { color: 'rgba(84,119,146,0.08)' } }, y: { grid: { display: false } } }
+        }
+    });
+    {% endif %}
+
+    // Live polling
+    function fetchLiveStats() {
+        fetch('{% url "dashboard:api_live_stats" %}')
+            .then(r => r.json())
+            .then(data => {
+                if (data.minute_data) {
+                    liveChart.data.labels = data.minute_data.map(m => m.minute);
+                    liveChart.data.datasets[0].data = data.minute_data.map(m => m.requests);
+                    liveChart.update('none');
+                }
+                document.getElementById('liveIndicator').textContent =
+                    `Live — ${data.requests_hour || 0} req/hr · ${new Date().toLocaleTimeString()}`;
+            })
+            .catch(() => { });
+    }
+    fetchLiveStats();
+    setInterval(fetchLiveStats, 5000);
+</script>
+{% endblock %}

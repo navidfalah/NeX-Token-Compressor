@@ -1,0 +1,139 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Audit Detail{% endblock %}
+
+{% block dashboard_content %}
+<!-- Back -->
+<div class="mb-8">
+    <a href="{% url 'dashboard:audit_list' %}"
+        class="inline-flex items-center gap-2 text-sm mb-4 transition-colors hover:opacity-100 opacity-70"
+        style="color:var(--accent-steel);">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Audit Logs
+    </a>
+    <div class="flex items-center gap-4">
+        <h1 class="text-3xl font-bold" style="color:var(--text-primary);">Request Detail</h1>
+        {% if log.status == 'success' %}<span class="badge badge-success">✓ Success</span>
+        {% elif log.status == 'cached' %}<span class="badge badge-cached">⚡ Cached</span>
+        {% else %}<span class="badge badge-error">✗ Error</span>{% endif %}
+    </div>
+    <div class="flex items-center gap-3 mt-3 text-sm flex-wrap" style="color:var(--text-muted);">
+        <span>{{ log.timestamp|date:"F d, Y — H:i:s" }}</span>
+        <span>•</span>
+        <span>User: <strong style="color:var(--text-primary);">{{ log.user.username|default:"API Key" }}</strong></span>
+        <span>•</span>
+        <span>Source:</span>
+        {% if log.source == 'gateway' %}
+        <span class="badge badge-active">API Gateway</span>
+        {% elif log.source == 'secure_chat' %}
+        <span class="badge badge-cached">Secure Chat</span>
+        {% elif log.source == 'file_chat' %}
+        <span class="badge badge-success">File Chat</span>
+        {% else %}
+        <span class="badge">{{ log.get_source_display }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Metrics Bar -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="metric-card text-center" style="border-color:rgba(16,185,129,0.3);">
+        <div class="metric-value text-lg" style="color:var(--text-primary);">{{ log.tokens_original|format_tokens }}
+        </div>
+        <div class="metric-label" style="color:var(--accent-green);">S1 Context (In)</div>
+    </div>
+    <div class="metric-card text-center" style="border-color:rgba(251,191,36,0.4);">
+        <div class="metric-value text-lg" style="color:var(--accent-amber);">{{ log.tokens_compressed|format_tokens }}
+        </div>
+        <div class="metric-label" style="color:var(--accent-amber);">MID Payload (In)</div>
+    </div>
+    <div class="metric-card text-center" style="border-color:rgba(251,191,36,0.4);">
+        <div class="metric-value text-lg" style="color:var(--accent-amber);">{{ log.tokens_response|format_tokens }}
+        </div>
+        <div class="metric-label" style="color:var(--accent-amber);">MID Logic (Out)</div>
+    </div>
+    <div class="metric-card text-center" style="border-color:rgba(99,102,241,0.3);">
+        <div class="metric-value text-lg" style="color:var(--accent-cyan);">{{ log.tokens_translated|format_tokens }}
+        </div>
+        <div class="metric-label" style="color:var(--accent-cyan);">S3 Human (Out)</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value text-lg gradient-text">{{ log.compression_ratio|default:"0" }}%</div>
+        <div class="metric-label">Efficiency</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value text-lg" style="color:var(--accent-green);">{{ log.cost_saved|format_cost }}</div>
+        <div class="metric-label">Cost Saved</div>
+    </div>
+</div>
+
+<!-- Split-Screen Panels -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="split-panel" style="border-color:rgba(16,185,129,0.2);">
+        <div class="split-panel-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" style="background:var(--accent-green);"></span>
+                <span style="color:var(--accent-green);">S1 Context (Human Input)</span>
+            </div>
+            <span class="text-xs font-mono opacity-50">{{ log.tokens_original|format_tokens }} tokens</span>
+        </div>
+        <div class="split-panel-body">
+            <pre class="text-xs font-mono whitespace-pre-wrap break-all"
+                style="color:var(--text-secondary);">{{ log.original_payload }}</pre>
+        </div>
+    </div>
+
+    <div class="split-panel" style="border-color:rgba(251,191,36,0.3);">
+        <div class="split-panel-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" style="background:var(--accent-amber);"></span>
+                <span style="color:var(--accent-amber);">MID Payload (NEX Synthesized)</span>
+            </div>
+            <span class="text-xs font-mono opacity-50">{{ log.tokens_compressed|format_tokens }} tokens</span>
+        </div>
+        <div class="split-panel-body">
+            <pre class="text-xs font-mono whitespace-pre-wrap break-all"
+                style="color:var(--text-secondary);">{{ log.compressed_payload }}</pre>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="split-panel" style="border-color:rgba(251,191,36,0.3);">
+        <div class="split-panel-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" style="background:var(--accent-amber);"></span>
+                <span style="color:var(--accent-amber);">MID Logic (NEX Execution)</span>
+            </div>
+            <span class="text-xs font-mono opacity-50">{{ log.tokens_response|format_tokens }} tokens</span>
+        </div>
+        <div class="split-panel-body">
+            <pre class="text-xs font-mono whitespace-pre-wrap break-all"
+                style="color:var(--text-secondary);">{{ log.deepseek_response|default:"(No Stage 2 output)" }}</pre>
+        </div>
+    </div>
+
+    <div class="split-panel" style="border-color:rgba(99,102,241,0.2);">
+        <div class="split-panel-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" style="background:var(--accent-cyan);"></span>
+                <span style="color:var(--accent-cyan);">S3 Extension (Human Output)</span>
+            </div>
+            <span class="text-xs font-mono opacity-50">{{ log.tokens_translated|format_tokens }} tokens</span>
+        </div>
+        <div class="split-panel-body">
+            <pre class="text-xs font-mono whitespace-pre-wrap break-all"
+                style="color:var(--text-secondary);">{{ log.final_response|default:"(No Stage 3 output)" }}</pre>
+        </div>
+    </div>
+</div>
+
+{% if log.error_message %}
+<div class="glass-card p-6 mt-6" style="border-color:rgba(248,113,113,0.25);">
+    <h3 class="text-lg font-bold mb-3" style="color:var(--accent-red);">Error Details</h3>
+    <pre class="text-sm font-mono whitespace-pre-wrap" style="color:var(--accent-red);">{{ log.error_message }}</pre>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,288 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}API Keys{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">API Keys</h1>
+        <p style="color:var(--text-secondary);">Manage app keys, rate limits, and allowed policies.</p>
+    </div>
+    <button onclick="document.getElementById('createKeyModal').classList.remove('hidden')"
+        class="btn-gradient text-sm px-5 py-2.5 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+        Generate New Key
+    </button>
+</div>
+
+<!-- Banner -->
+{% if messages %}
+{% for message in messages %}
+{% if 'new_api_key' in message.tags %}
+<div class="glass-card mb-8 p-6 glow"
+    style="background:linear-gradient(135deg, rgba(74,222,128,0.1), rgba(26,50,99,0.2)); border-color:rgba(74,222,128,0.3);">
+    <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style="background:rgba(74,222,128,0.2);">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                style="color:var(--accent-green);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+        <div class="flex-1">
+            <h3 class="text-lg font-bold mb-1" style="color:var(--accent-green);">Save this key now</h3>
+            <p class="text-sm mb-4" style="color:var(--text-secondary);">
+                For security reasons, this is the <strong>only time</strong> the full key will be shown.
+            </p>
+            <div class="flex items-center gap-2 p-3 rounded-lg"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <code id="newKey" class="text-sm flex-1 font-mono tracking-wider break-all"
+                    style="color:var(--accent-amber);">{{ message.message }}</code>
+                <button onclick="copyKey()" class="p-2 transition-colors rounded hover:bg-white/10"
+                    style="color:var(--text-muted);" title="Copy to clipboard">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </button>
+            </div>
+            <div id="copyFeedback" class="text-xs mt-2 hidden" style="color:var(--accent-green);">Copied to clipboard!
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+<!-- Keys List -->
+<div class="space-y-4">
+    {% for key in keys %}
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style="background:rgba(84,119,146,0.15);">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="color:var(--accent-steel);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                </div>
+                <div>
+                    {% with name=key.name|default:"Unnamed Key" %}
+                    <h3 class="font-bold text-base" style="color:var(--text-primary);">{{ name }}</h3>
+                    {% endwith %}
+
+                    <div class="flex items-center gap-2 mt-1">
+                        {% with masked=key.masked_key|default:"—" %}
+                        <code class="text-xs font-mono" style="color:var(--text-muted);"
+                            id="key-{{ key.id }}">{{ masked }}</code>
+                        {% endwith %}
+
+                        {% with raw_key=key.key %}
+                        <button type="button"
+                            class="text-xs flex items-center gap-1 hover:text-white transition-colors p-1 rounded"
+                            style="color:var(--text-muted); background:var(--bg-glass); border:1px solid var(--border-glass);"
+                            onclick="copyExistingKey('{{ raw_key }}', this)">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Copy
+                        </button>
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+            <div>
+                {% if key.is_active %}
+                <span class="badge badge-success">Active</span>
+                {% else %}
+                <span class="badge badge-revoked">Revoked</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+            <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+                <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Linked Provider
+                </div>
+                {% with p_name=key.default_provider.name|default:"Any provider" %}
+                <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ p_name }}</div>
+                {% endwith %}
+            </div>
+            <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+                <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Rate Limit</div>
+                <div class="text-sm font-semibold" style="color:var(--text-primary);">
+                    {% if key.requests_per_minute %}
+                    {{ key.requests_per_minute }} <span class="font-normal"
+                        style="color:var(--text-secondary);">req/min</span>
+                    {% else %}
+                    Unlimited
+                    {% endif %}
+                </div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+                <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Created</div>
+                <div class="text-sm" style="color:var(--text-secondary);">{{ key.created_at|date:"M d, Y" }}</div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+                <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Last Used</div>
+                {% with lu=key.last_used_at|timesince_short|default:"Never" %}
+                <div class="text-sm" style="color:var(--text-secondary);">{{ lu }}</div>
+                {% endwith %}
+            </div>
+        </div>
+
+        <!-- Flow Features -->
+        <div class="flex flex-wrap items-center gap-3 text-xs mb-3">
+            {% if key.enable_compression %}
+            <span class="badge badge-active">Compression</span>
+            {% else %}
+            <span class="badge badge-revoked">No Compression</span>
+            {% endif %}
+
+            {% if key.enable_pii_masking %}
+            <span class="badge badge-active">PII Masking</span>
+            {% else %}
+            <span class="badge badge-revoked">No PII Data</span>
+            {% endif %}
+
+            {% if key.enable_caching %}
+            <span class="badge badge-active">Caching Semantic</span>
+            {% else %}
+            <span class="badge badge-revoked">No Cache</span>
+            {% endif %}
+        </div>
+
+        {% if key.is_active %}
+        <div class="flex justify-end">
+            <form method="post" class="inline"
+                onsubmit="return confirm('Revoking a key cannot be undone. Any applications using it will lose access immediately. Proceed?')">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="revoke">
+                <input type="hidden" name="key_id" value="{{ key.id }}">
+                <button type="submit" class="text-xs font-semibold px-3 py-1.5 transition-colors rounded-lg"
+                    style="color:var(--accent-red); background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.2);">
+                    Revoke Key
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="glass-card p-16 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            style="background:var(--bg-glass);">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-muted);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-semibold mb-2" style="color:var(--text-secondary);">No API Keys Yet</h3>
+        <p class="text-sm mb-6" style="color:var(--text-muted);">Generate an API key to securely connect your apps to
+            Firma-KI gateway.</p>
+        <button onclick="document.getElementById('createKeyModal').classList.remove('hidden')"
+            class="btn-gradient text-sm px-6 py-2.5">Generate First Key</button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal -->
+<div id="createKeyModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-md glow">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Generate API Key</h3>
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Key
+                    Identifier</label>
+                <input type="text" name="name" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="e.g., Production App 1">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Fixed Target Provider
+                    <span style="color:var(--text-muted);">(optional)</span></label>
+                <select name="provider_id" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                    <option value="">Any (Gateway routes based on rules)</option>
+                    {% for p in providers %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.get_provider_type_display }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="space-y-3">
+                <label class="block text-sm font-medium mb-1" style="color:var(--text-secondary);">Gateway
+                    Policies</label>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="enable_compression" checked class="w-4 h-4 rounded"
+                        style="accent-color:var(--accent-amber);">
+                    <span class="text-sm" style="color:var(--text-primary);">Enable Semantic Compression</span>
+                </label>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="enable_pii_masking" checked class="w-4 h-4 rounded"
+                        style="accent-color:var(--accent-amber);">
+                    <span class="text-sm" style="color:var(--text-primary);">Enable PII GDPR Masking</span>
+                </label>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="enable_caching" checked class="w-4 h-4 rounded"
+                        style="accent-color:var(--accent-amber);">
+                    <span class="text-sm" style="color:var(--text-primary);">Enable Response Caching</span>
+                </label>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Rate Limit (requests
+                    / min)</label>
+                <input type="number" name="rpm_limit" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="e.g., 60 (Empty = Unlimited)">
+            </div>
+
+            <div class="flex gap-3 mt-4">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Generate</button>
+                <button type="button" onclick="document.getElementById('createKeyModal').classList.add('hidden')"
+                    class="btn-secondary flex-1 py-3 text-center">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function copyKey() {
+        const key = document.getElementById('newKey').innerText;
+        navigator.clipboard.writeText(key).then(() => {
+            document.getElementById('copyFeedback').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('copyFeedback').classList.add('hidden');
+            }, 3000);
+        });
+    }
+
+    function copyExistingKey(keyText, buttonElement) {
+        navigator.clipboard.writeText(keyText).then(() => {
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = `
+                <svg class="w-3 h-3" style="color:var(--accent-green);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span style="color:var(--accent-green);">Copied</span>
+            `;
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHTML;
+            }, 2000);
+        });
+    }
+</script>
+{% endblock %}

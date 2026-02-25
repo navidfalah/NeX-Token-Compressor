@@ -1,0 +1,233 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}AI Providers{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">AI Providers</h1>
+        <p style="color:var(--text-secondary);">Configure and manage your AI API providers — DeepSeek, OpenAI, Gemini,
+            Grok, and custom endpoints.</p>
+    </div>
+    <button onclick="document.getElementById('addProviderModal').classList.remove('hidden')"
+        class="btn-gradient text-sm px-5 py-2.5 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add Provider
+    </button>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4">
+    {% for provider in providers %}
+    <div class="glass-card p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <!-- Provider avatar — colour-coded by type using palette -->
+                {% if provider.provider_type == 'deepseek' %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:var(--gradient-navy);">DS</div>
+                {% elif provider.provider_type == 'openai' %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:var(--gradient-steel);">AI</div>
+                {% elif provider.provider_type == 'gemini' %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:linear-gradient(135deg,#547792,#1A3263);">G</div>
+                {% elif provider.provider_type == 'grok' %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:linear-gradient(135deg,#2a2a2a,#444);">X</div>
+                {% elif provider.provider_type == 'anthropic' %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:linear-gradient(135deg,#c26d3a,#913d1a);">C</div>
+                {% else %}
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                    style="background:var(--gradient-primary);">?</div>
+                {% endif %}
+                {% with ttype=provider.get_provider_type_display|default:"—" %}
+                <div>
+                    <h3 class="font-bold text-lg" style="color:var(--text-primary);">
+                        {{ provider.name|default:"Unnamed" }}
+                    </h3>
+                    <p class="text-xs" style="color:var(--text-muted);">
+                        {{ ttype }}
+                    </p>
+                </div>
+                {% endwith %}
+            </div>
+            <div class="flex items-center gap-2">
+                {% if provider.is_default %}<span class="badge badge-cached">Default</span>{% endif %}
+                {% if provider.is_active %}<span class="badge badge-success">Active</span>
+                {% else %}<span class="badge badge-revoked">Disabled</span>{% endif %}
+            </div>
+        </div>
+
+        <div class="space-y-2 text-sm mb-4">
+            <div class="flex justify-between">
+                <span style="color:var(--text-muted);">Base URL</span>
+                <code class="text-xs px-2 py-0.5 rounded"
+                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.api_base_url|truncatechars:40 }}</code>
+            </div>
+            <div class="flex justify-between">
+                <span style="color:var(--text-muted);">Model</span>
+                <span style="color:var(--text-secondary);">{{ provider.model_name|default:"—" }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span style="color:var(--text-muted);">API Key</span>
+                <code class="text-xs" style="color:var(--text-muted);">{{ provider.masked_api_key }}</code>
+            </div>
+            {% if provider.output_webhook_url %}
+            <div class="flex justify-between">
+                <span style="color:var(--text-muted);">Webhook</span>
+                <code class="text-xs px-2 py-0.5 rounded"
+                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.output_webhook_url|truncatechars:30 }}</code>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Stats strip -->
+        {% with pt=provider.total_tokens_used pd=provider.total_data_bytes %}
+        <div class="grid grid-cols-3 gap-3 p-3 rounded-xl mb-4"
+            style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+            <div class="text-center">
+                <div class="text-lg font-bold gradient-text">{{ provider.total_requests|default:"0" }}</div>
+                <div class="text-xs" style="color:var(--text-muted);">Requests</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold" style="color:var(--accent-steel);">
+                    {{ pt|default:"0"|format_tokens }}
+                </div>
+                <div class="text-xs" style="color:var(--text-muted);">Tokens</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold" style="color:var(--text-secondary);">
+                    {{ pd|default:"0"|format_bytes }}
+                </div>
+                <div class="text-xs" style="color:var(--text-muted);">Data</div>
+            </div>
+        </div>
+        {% endwith %}
+
+        <div class="flex gap-2">
+            {% if provider.is_system %}
+            <span class="text-xs italic px-1 py-1" style="color:var(--text-muted);">Built-in system provider
+                (read-only)</span>
+            {% else %}
+            {% if not provider.is_default %}
+            <form method="post" class="inline">
+                <input type="hidden" name="action" value="set_default">
+                <input type="hidden" name="provider_id" value="{{ provider.id }}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Set Default</button>
+            </form>
+            {% endif %}
+            <form method="post" class="inline">
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="provider_id" value="{{ provider.id }}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary text-xs px-3 py-1.5">
+                    {% if provider.is_active %}Disable{% else %}Enable{% endif %}
+                </button>
+            </form>
+            <form method="post" class="inline" onsubmit="return confirm('Delete this provider?')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="provider_id" value="{{ provider.id }}">
+                {% csrf_token %}
+                <button type="submit" class="btn-danger text-xs px-3 py-1.5">Delete</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="md:col-span-2 glass-card p-16 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            style="background:var(--bg-glass);">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-muted);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-semibold mb-2" style="color:var(--text-secondary);">No AI Providers Yet</h3>
+        <p class="text-sm mb-6" style="color:var(--text-muted);">Add your first AI provider to start routing compressed
+            requests.</p>
+        <button onclick="document.getElementById('addProviderModal').classList.remove('hidden')"
+            class="btn-gradient text-sm px-6 py-2.5">Add Your First Provider</button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Provider Modal -->
+<div id="addProviderModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-lg glow" style="max-height:90vh; overflow-y:auto;">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Add AI Provider</h3>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Display Name</label>
+                <input type="text" name="name" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="e.g., Production GPT-4o">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Provider Type</label>
+                <select name="provider_type" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="openai">OpenAI / ChatGPT</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="grok">xAI Grok</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                    <option value="custom">Custom Provider</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">API Base URL</label>
+                <input type="url" name="api_base_url" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="https://api.openai.com/v1">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">API Key</label>
+                <input type="password" name="api_key" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="sk-…">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Model Name</label>
+                <input type="text" name="model_name" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="gpt-4o, deepseek-chat, gemini-pro">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">
+                    Output Webhook URL <span style="color:var(--text-muted);">(optional)</span>
+                </label>
+                <input type="url" name="output_webhook_url" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="https://your-app.com/webhook">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Max
+                        Tokens</label>
+                    <input type="number" name="max_tokens" value="4096" class="w-full px-4 py-3 rounded-xl fi-input"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2"
+                        style="color:var(--text-secondary);">Temperature</label>
+                    <input type="number" step="0.1" name="temperature" value="0.7" min="0" max="2"
+                        class="w-full px-4 py-3 rounded-xl fi-input"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-2">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Add Provider</button>
+                <button type="button" onclick="document.getElementById('addProviderModal').classList.add('hidden')"
+                    class="btn-secondary flex-1 py-3 text-center">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

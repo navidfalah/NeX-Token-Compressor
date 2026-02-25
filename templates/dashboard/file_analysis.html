@@ -1,0 +1,521 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}File Analysis{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Document Intelligence</h1>
+        <p style="color:var(--text-secondary);">Upload files and analyze them instantly with your configured AI
+            providers.</p>
+    </div>
+    <button onclick="document.getElementById('uploadModal').classList.remove('hidden')"
+        class="btn-gradient text-sm px-5 py-2.5 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        Upload Documents
+    </button>
+</div>
+
+<!-- Files List -->
+<div class="space-y-6">
+    {% regroup files by directory as directory_list %}
+    {% for ds in directory_list %}
+    <div class="glass-card p-6 border shadow-sm" style="border-color:var(--border-glass);">
+        <div class="flex items-center gap-3 mb-4 pb-3 border-b" style="border-color:var(--border-glass);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:var(--gradient-primary); color:white;">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold" style="color:var(--text-primary);">
+                    {% if ds.grouper %}{{ ds.grouper.name }}{% else %}Sandbox (Unassigned){% endif %}
+                </h2>
+                <div class="text-xs" style="color:var(--text-muted);">{{ ds.list|length }} file(s) indexed</div>
+            </div>
+        </div>
+
+        <div class="space-y-3 pl-2">
+            {% for file in ds.list %}
+            <div class="glass-card p-5" style="background:var(--bg-secondary);">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl drop-shadow-sm">{{ file.filename|file_icon }}</span>
+                        <div>
+                            {% with fname=file.filename|default:"—" %}
+                            <h3 class="font-bold text-sm" style="color:var(--text-primary);">{{ fname }}</h3>
+                            {% endwith %}
+                            <p class="text-[11px] mt-0.5" style="color:var(--text-muted);">
+                                {% with fsize=file.file_size|default:"0"|format_bytes %}
+                                <span class="font-medium" style="color:var(--text-secondary);">{{ fsize }}</span>
+                                {% endwith %}
+                                <span class="mx-1">•</span>
+                                {{ file.created_at|timesince_short|default_if_none:"—" }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        {% if file.status == 'done' %}
+                        <span class="badge badge-success text-[10px]">✓ Vectorized</span>
+                        {% elif file.status == 'processing' %}
+                        <span class="badge badge-active animate-pulse text-[10px]">⏳ Indexing...</span>
+                        {% elif file.status == 'error' %}
+                        <span class="badge badge-error text-[10px]">✗ Failed</span>
+                        {% else %}
+                        <span class="badge badge-cached text-[10px]">⏸ Queued</span>
+                        {% endif %}
+
+                        {% if file.tokens_used %}
+                        {% with used=file.tokens_used|default:"0"|format_tokens %}
+                        <div class="px-2 py-1 rounded border text-[10px] font-mono"
+                            style="background:rgba(84,119,146,0.1); border-color:rgba(84,119,146,0.25); color:var(--text-secondary);">
+                            {{ used }} tok
+                        </div>
+                        {% endwith %}
+                        {% endif %}
+
+                        {% if file.status == 'error' or file.status == 'processing' %}
+                        <form method="post" class="inline"
+                            onsubmit="return confirm('Retrying Vector processing for this file?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reprocess">
+                            <input type="hidden" name="file_id" value="{{ file.id }}">
+                            <button type="submit" class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                                style="color:var(--accent-amber);" title="Reprocess File Database">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <form method="post" class="inline" onsubmit="return confirm('Delete this file permanently?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="file_id" value="{{ file.id }}">
+                            <button type="submit" class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                                style="color:var(--accent-red);" title="Delete File">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {% if file.result %}
+                <div class="mt-4 p-4 rounded-xl text-sm"
+                    style="background:var(--bg-glass); border:1px solid var(--border-glass);">
+                    <details class="group cursor-pointer">
+                        <summary class="flex items-center justify-between gap-2 mb-2 outline-none">
+                            <div class="flex items-center gap-2">
+                                <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold"
+                                    style="background:var(--gradient-primary); color:var(--text-inverse);">AI</div>
+                                <h4 class="font-bold text-[11px] uppercase tracking-wider transition-colors group-hover:text-white"
+                                    style="color:var(--text-muted);">
+                                    View First 100kb Extract
+                                </h4>
+                            </div>
+                            <svg class="w-4 h-4 transition-transform group-open:rotate-180"
+                                style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </summary>
+
+                        <div class="whitespace-pre-wrap leading-relaxed mt-4 pt-3 border-t text-xs"
+                            style="color:var(--text-primary); border-color:var(--border-glass);">{{ file.result }}</div>
+                    </details>
+
+                    <div class="mt-3 pt-3 flex justify-end gap-2">
+                        <button
+                            onclick="downloadText('{{ file.filename|escapejs }}_analysis.txt', `{{ file.result|escapejs }}`)"
+                            class="btn-gradient text-[11px] px-3 py-1.5 inline-flex items-center gap-1.5 opacity-80 hover:opacity-100"
+                            style="background:rgba(84,119,146,0.1); border:1px solid rgba(84,119,146,0.25); color:var(--text-secondary); box-shadow:none;">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download
+                        </button>
+                        <button onclick="openFileChat('{{ file.id }}', '{{ file.filename|escapejs }}')"
+                            class="btn-gradient text-[11px] px-4 py-1.5 inline-flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            Ask Questions
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if file.error_message %}
+                <div class="mt-3 p-3 rounded-xl"
+                    style="background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25);">
+                    <div class="flex items-center gap-2 text-xs font-bold mb-1" style="color:var(--accent-red);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Analysis Failed
+                    </div>
+                    <pre class="text-[10px] whitespace-pre-wrap font-mono"
+                        style="color:var(--accent-red);">{{ file.error_message }}</pre>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="glass-card p-16 text-center shadow-xl">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl"
+            style="background:linear-gradient(135deg, rgba(84,119,146,0.2), rgba(26,50,99,0.3)); border:1px solid rgba(84,119,146,0.3);">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                style="color:var(--accent-steel);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold mb-2" style="color:var(--text-primary);">No Files Analyzed</h3>
+        <p class="text-sm mb-6 max-w-md mx-auto" style="color:var(--text-muted);">
+            Upload PDFs, spreadsheets, or code into Directories. Firma-KI chunks and vectors them for isolated Chat
+            interactions.
+        </p>
+        <button onclick="document.getElementById('uploadModal').classList.remove('hidden')"
+            class="btn-gradient px-8 py-3 text-sm">Upload Fast Analysis</button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-lg glow">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Upload Document</h3>
+        <form method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Target
+                    Directory</label>
+                <div class="flex gap-2">
+                    <select name="directory_id" class="w-full px-4 py-3 rounded-xl fi-input flex-1"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                        <option value="">Sandbox (Unassigned)</option>
+                        {% for d in directories %}
+                        <option value="{{ d.id }}">{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button"
+                        onclick="document.getElementById('uploadModal').classList.add('hidden'); document.getElementById('dirModal').classList.remove('hidden');"
+                        class="btn-secondary px-4 rounded-xl flex items-center justify-center font-bold transition-transform hover:scale-105"
+                        title="New Directory">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Documents</label>
+                <div id="dropZone"
+                    class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all hover:bg-white/5"
+                    style="border-color:var(--border-glass); background:rgba(84,119,146,0.05);"
+                    onclick="document.getElementById('fileInput').click()">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                        style="background:rgba(250,185,91,0.1); color:var(--accent-amber);">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium" style="color:var(--text-primary);">Click or drag files here</p>
+                    <p class="text-xs mt-1" style="color:var(--text-muted);">PDF, DOCX, TXT, CSV, JSON (max 10MB)</p>
+                </div>
+                <input id="fileInput" type="file" name="files" multiple class="hidden" onchange="updateFileList(this)">
+                <div id="fileList" class="mt-3 space-y-2"></div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Extraction
+                    Prompt</label>
+                <textarea name="prompt" rows="3"
+                    class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm leading-relaxed"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Analyze this file and extract key points.">Analyze this document and provide a structured summary including main themes and any action items.</textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Analyze Now</button>
+                <button type="button" onclick="document.getElementById('uploadModal').classList.add('hidden')"
+                    class="btn-secondary flex-1 py-3 text-center">Cancel</button>
+            </div>
+        </form>
+        </form>
+    </div>
+</div>
+
+<!-- Create Directory Modal -->
+<div id="dirModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-sm glow">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">New Directory</h3>
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_directory">
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Directory
+                    Name</label>
+                <input type="text" name="name" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    placeholder="e.g. Legal Contracts"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Create</button>
+                <button type="button"
+                    onclick="document.getElementById('dirModal').classList.add('hidden'); document.getElementById('uploadModal').classList.remove('hidden');"
+                    class="btn-secondary flex-1 py-3 text-center">Back</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Chat Slideover Modal -->
+<div id="chatModal" class="hidden fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity">
+    <div class="w-full max-w-md h-full flex flex-col shadow-2xl"
+        style="background:var(--bg-primary); border-left:1px solid var(--border-glass); transform: translateX(0%);">
+
+        <!-- Chat Header -->
+        <div class="p-4 flex items-center justify-between border-b"
+            style="border-color:var(--border-glass); background:var(--bg-secondary);">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold"
+                    style="background:var(--gradient-primary); color:var(--text-inverse);">AI</div>
+                <div>
+                    <h3 class="font-bold text-sm" style="color:var(--text-primary);">Q&A with Document</h3>
+                    <p id="chatFileName" class="text-xs font-mono" style="color:var(--accent-steel);"></p>
+                </div>
+            </div>
+            <button onclick="closeFileChat()" class="p-2 transition-colors rounded-lg hover:bg-white/10"
+                style="color:var(--text-muted);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Chat History -->
+        <div id="chatHistory" class="flex-1 overflow-y-auto p-4 space-y-5" style="background:var(--bg-primary);">
+            <!-- initial hidden logic injected by openFileChat -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-4 border-t" style="border-color:var(--border-glass); background:var(--bg-secondary);">
+            <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask about this document..." required
+                    class="flex-1 px-4 py-3 rounded-xl text-sm transition-all fi-input focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                <button type="submit" id="chatSubmitBtn"
+                    class="w-12 h-12 rounded-xl flex items-center justify-center transition-transform hover:scale-105"
+                    style="background:var(--gradient-primary); color:var(--text-inverse); box-shadow:0 0 20px var(--shadow-glow);">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateFileList(input) {
+        const list = document.getElementById('fileList');
+        list.innerHTML = '';
+        if (input.files.length > 0) {
+            list.classList.add('p-3', 'rounded-lg');
+            list.style.background = 'var(--bg-glass)';
+            list.style.border = '1px solid var(--border-glass)';
+        }
+        for (const f of input.files) {
+            const div = document.createElement('div');
+            div.className = 'text-xs flex items-center justify-between py-1 border-b last:border-0';
+            div.style.borderColor = 'var(--border-glass)';
+            div.style.color = 'var(--text-primary)';
+            div.innerHTML = `
+                <span class="font-medium truncate pr-2">📄 ${f.name}</span>
+                <span style="color:var(--accent-steel);">${(f.size / 1024).toFixed(1)} KB</span>
+            `;
+            list.appendChild(div);
+        }
+    }
+
+    document.querySelector('#uploadModal form').addEventListener('submit', function (e) {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.innerHTML = 'Uploading...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
+
+    let currentChatFileId = null;
+
+    function openFileChat(fileId, filename) {
+        currentChatFileId = fileId;
+        document.getElementById('chatFileName').textContent = filename;
+        document.getElementById('chatModal').classList.remove('hidden');
+        const history = document.getElementById('chatHistory');
+        history.innerHTML = `
+            <div class="flex gap-3 items-start animate-fade-in">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                    style="background:var(--gradient-primary); color:var(--text-inverse);">AI</div>
+                <div class="p-3.5 rounded-2xl rounded-tl-none text-sm shadow-sm leading-relaxed"
+                    style="background:var(--bg-glass); color:var(--text-primary); border:1px solid var(--border-glass);">
+                    I've read <strong style="color:var(--accent-amber);">${filename}</strong>. What specific information are you looking for?
+                </div>
+            </div>
+        `;
+    }
+
+    function closeFileChat() {
+        document.getElementById('chatModal').classList.add('hidden');
+        currentChatFileId = null;
+    }
+
+    async function handleChatSubmit(e) {
+        e.preventDefault();
+        if (!currentChatFileId) return;
+
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        if (!message) return;
+
+        const history = document.getElementById('chatHistory');
+
+        // User message
+        history.insertAdjacentHTML('beforeend', `
+            <div class="flex gap-3 items-start flex-row-reverse animate-fade-in">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                    style="background:var(--bg-glass); color:var(--text-primary); border:1px solid var(--border-glass);">U</div>
+                <div class="p-3.5 rounded-2xl rounded-tr-none text-sm shadow-sm leading-relaxed"
+                    style="background:rgba(250,185,91,0.1); color:var(--text-primary); border:1px solid rgba(250,185,91,0.25);">
+                    ${escapeHtml(message)}
+                </div>
+            </div>
+        `);
+
+        input.value = '';
+        history.scrollTop = history.scrollHeight;
+
+        // Typing indicator
+        const typingId = 'typing-' + Date.now();
+        history.insertAdjacentHTML('beforeend', `
+            <div id="${typingId}" class="flex gap-3 items-start animate-fade-in">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold inset-shadow animate-pulse"
+                    style="background:var(--bg-glass); color:var(--text-muted);">...</div>
+                <div class="p-3.5 rounded-2xl rounded-tl-none text-sm animate-pulse"
+                    style="background:var(--bg-glass); color:var(--text-muted); border:1px solid var(--border-glass);">
+                    Analyzing document context...
+                </div>
+            </div>
+        `);
+        history.scrollTop = history.scrollHeight;
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch(`/dashboard/api/file-chat/${currentChatFileId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ message: message })
+            });
+
+            document.getElementById(typingId).remove();
+
+            if (!res.ok) {
+                try {
+                    const data = await res.json();
+                    appendBotMessage('Error: ' + (data.error || res.statusText), true);
+                } catch (e) {
+                    const text = await res.text();
+                    appendBotMessage('Error: ' + text, true);
+                }
+                return;
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let isFirstChunk = true;
+            let currentMessageDiv = null;
+            let fullText = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                fullText += chunk;
+
+                if (isFirstChunk) {
+                    appendBotMessage(fullText);
+                    currentMessageDiv = history.lastElementChild.querySelector('.message-content');
+                    isFirstChunk = false;
+                } else if (currentMessageDiv) {
+                    currentMessageDiv.textContent = fullText;
+                }
+                history.scrollTop = history.scrollHeight;
+            }
+        } catch (err) {
+            console.error(err);
+            const typingEl = document.getElementById(typingId);
+            if (typingEl) typingEl.remove();
+            appendBotMessage('Network connectivity error.', true);
+        }
+    }
+
+    function appendBotMessage(text, isError = false) {
+        const history = document.getElementById('chatHistory');
+        const bgStyle = isError ? 'rgba(248,113,113,0.08)' : 'var(--bg-glass)';
+        const borderStyle = isError ? 'rgba(248,113,113,0.3)' : 'var(--border-glass)';
+        const textColor = isError ? 'var(--accent-red)' : 'var(--text-primary)';
+        const avStyle = isError ? 'background:rgba(248,113,113,0.15); color:var(--accent-red);' : 'background:var(--gradient-primary); color:var(--text-inverse);';
+
+        history.insertAdjacentHTML('beforeend', `
+            <div class="flex gap-3 items-start animate-fade-in">
+                <div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                    style="${avStyle}">${isError ? '!' : 'AI'}</div>
+                <div class="p-3.5 rounded-2xl rounded-tl-none text-sm shadow-sm leading-relaxed message-content"
+                    style="background:${bgStyle}; color:${textColor}; border:1px solid ${borderStyle}; white-space:pre-wrap;">${escapeHtml(text)}</div>
+            </div>
+        `);
+        history.scrollTop = history.scrollHeight;
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || "").toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function downloadText(filename, text) {
+        const element = document.createElement('a');
+        const blob = new Blob([text], { type: 'text/plain' });
+        element.setAttribute('href', window.URL.createObjectURL(blob));
+        element.setAttribute('download', filename);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+</script>
+{% endblock %}

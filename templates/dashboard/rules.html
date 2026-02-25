@@ -1,0 +1,283 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Compression Rules{% endblock %}
+
+{% block dashboard_content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Compression Rules Engine</h1>
+    <p style="color:var(--text-secondary);">
+        Language shortcuts and NEX single-character opcodes that shrink every prompt before it hits the AI.
+    </p>
+</div>
+
+<!-- Tab Navigation -->
+<div class="flex border-b mb-6" style="border-color:var(--border-glass);">
+    <button onclick="switchTab('lang')" id="tab-lang"
+        class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 transition-all"
+        style="border-color:var(--accent-amber); color:var(--accent-amber);">
+        🌐 Language Rules
+    </button>
+    <button onclick="switchTab('prog')" id="tab-prog"
+        class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent transition-all"
+        style="color:var(--text-muted);">
+        ⚡ NEX Opcodes
+    </button>
+    <button onclick="switchTab('custom')" id="tab-custom"
+        class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent transition-all"
+        style="color:var(--text-muted);">
+        ⚙ Custom Rules
+    </button>
+</div>
+
+<!-- Language Rules Tab -->
+<div id="panel-lang" class="tab-panel">
+    {% for lang_code, lang_rules in lang_groups.items %}
+    <div class="glass-card p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+            <span class="text-2xl">
+                {% if lang_code == 'de' %}🇩🇪{% elif lang_code == 'en' %}🇬🇧{% elif lang_code == 'fr' %}🇫🇷{% else
+                %}🇪🇸{% endif %}
+            </span>
+            <div>
+                <h3 class="font-bold" style="color:var(--text-primary);">
+                    {% if lang_code == 'de' %}German
+                    {% elif lang_code == 'en' %}English
+                    {% elif lang_code == 'fr' %}French
+                    {% else %}Spanish{% endif %} Compression
+                </h3>
+                <p class="text-xs" style="color:var(--text-muted);">
+                    {{ lang_rules.count|default_if_none:"0" }} built-in rules · System-managed
+                </p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Verbose Pattern</th>
+                        <th>→</th>
+                        <th>Compressed Form</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in lang_rules %}
+                    <tr>
+                        <td>
+                            <code class="text-sm px-2 py-0.5 rounded"
+                                style="background:var(--code-bg); color:var(--accent-red);">{{ rule.pattern }}</code>
+                        </td>
+                        <td class="text-center" style="color:var(--text-muted);">→</td>
+                        <td>
+                            <code class="text-sm px-2 py-0.5 rounded font-bold"
+                                style="background:rgba(74,222,128,0.08); color:var(--accent-green);">{{ rule.replacement }}</code>
+                        </td>
+                        <td class="text-sm" style="color:var(--text-muted);">{{ rule.description|default_if_none:"—" }}
+                        </td>
+                        <td>
+                            {% if rule.is_active %}
+                            <span class="badge badge-success">Active</span>
+                            {% else %}
+                            <span class="badge badge-revoked">Off</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- NEX Opcodes Tab -->
+<div id="panel-prog" class="tab-panel hidden">
+    <!-- Header card -->
+    <div class="glass-card p-6 mb-6"
+        style="background:linear-gradient(135deg, rgba(26,50,99,0.4), rgba(84,119,146,0.2)); border-color:rgba(250,185,91,0.2);">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+                style="background:rgba(250,185,91,0.12); border:1px solid rgba(250,185,91,0.25);">⚡</div>
+            <div class="flex-1">
+                <h3 class="font-bold text-lg mb-1" style="color:var(--text-primary);">NEX Single-Character Transpilation
+                </h3>
+                <p class="text-sm mb-3" style="color:var(--text-secondary);">
+                    Every keyword is collapsed to a <strong style="color:var(--accent-amber);">single character</strong>
+                    before the prompt reaches the AI model —
+                    cutting token count by up to <strong style="color:var(--accent-amber);">60 %</strong> on code-heavy
+                    prompts.
+                    The gateway decompresses the response transparently.
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <div class="px-3 py-1.5 rounded-lg text-xs font-mono"
+                        style="background:var(--code-bg); color:var(--text-secondary);">
+                        <span style="color:var(--accent-red);">function</span>
+                        <span style="color:var(--accent-steel);"> → </span>
+                        <span class="nex-opcode-badge"
+                            style="display:inline-flex; font-size:.75rem; width:1.4rem; height:1.4rem;">F</span>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-lg text-xs font-mono"
+                        style="background:var(--code-bg); color:var(--text-secondary);">
+                        <span style="color:var(--accent-red);">return</span>
+                        <span style="color:var(--accent-steel);"> → </span>
+                        <span class="nex-opcode-badge"
+                            style="display:inline-flex; font-size:.75rem; width:1.4rem; height:1.4rem;">R</span>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-lg text-xs font-mono"
+                        style="background:var(--code-bg); color:var(--text-secondary);">
+                        <span style="color:var(--accent-red);">import</span>
+                        <span style="color:var(--accent-steel);"> → </span>
+                        <span class="nex-opcode-badge"
+                            style="display:inline-flex; font-size:.75rem; width:1.4rem; height:1.4rem;">I</span>
+                    </div>
+                    <div class="px-3 py-1.5 rounded-lg text-xs font-mono"
+                        style="background:var(--code-bg); color:var(--text-secondary);">
+                        <span style="color:var(--accent-red);">class</span>
+                        <span style="color:var(--accent-steel);"> → </span>
+                        <span class="nex-opcode-badge"
+                            style="display:inline-flex; font-size:.75rem; width:1.4rem; height:1.4rem;">C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for prog_code, prog_rules in prog_groups.items %}
+    <div class="glass-card p-6 mb-4">
+        <div class="flex items-center gap-3 mb-4">
+            <span class="text-2xl">
+                {% if prog_code == 'python' %}🐍{% elif prog_code == 'javascript' %}⚡{% else %}🗄️{% endif %}
+            </span>
+            <div>
+                <h3 class="font-bold" style="color:var(--text-primary);">
+                    {% if prog_code == 'python' %}Python
+                    {% elif prog_code == 'javascript' %}JavaScript
+                    {% else %}SQL{% endif %} → NEX
+                </h3>
+                <p class="text-xs" style="color:var(--text-muted);">{{ prog_rules.count|default_if_none:"0" }} opcodes ·
+                    System-managed</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Source Keyword</th>
+                        <th></th>
+                        <th>NEX Char</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in prog_rules %}
+                    <tr>
+                        <td>
+                            <span class="nex-source-badge">{{ rule.pattern }}</span>
+                        </td>
+                        <td class="text-center nex-arrow">→</td>
+                        <td>
+                            <span class="nex-opcode-badge">{{ rule.replacement }}</span>
+                        </td>
+                        <td class="text-sm" style="color:var(--text-muted);">{{ rule.description|default_if_none:"—" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Custom Rules Tab -->
+<div id="panel-custom" class="tab-panel hidden">
+    <div class="flex justify-end mb-4">
+        <button onclick="document.getElementById('addRuleModal').classList.remove('hidden')"
+            class="btn-gradient text-sm px-5 py-2.5 inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Custom Rule
+        </button>
+    </div>
+
+    {% for rule in custom_rules %}
+    <div class="glass-card p-5 mb-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <code class="text-sm px-3 py-1 rounded"
+                style="background:var(--code-bg); color:var(--accent-red);">{{ rule.pattern }}</code>
+            <span style="color:var(--text-muted);">→</span>
+            <code class="text-sm px-3 py-1 rounded"
+                style="background:rgba(74,222,128,0.08); color:var(--accent-green);">{{ rule.replacement }}</code>
+            {% if rule.description %}
+            <span class="text-xs" style="color:var(--text-muted);">{{ rule.description|default_if_none:"—" }}</span>
+            {% endif %}
+        </div>
+        <form method="post" class="inline" onsubmit="return confirm('Delete this rule?')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="rule_id" value="{{ rule.id }}">
+            <button type="submit" class="btn-danger text-xs px-3 py-1.5">Delete</button>
+        </form>
+    </div>
+    {% empty %}
+    <div class="glass-card p-12 text-center">
+        <p class="text-sm" style="color:var(--text-muted);">No custom rules yet. Add domain-specific shortcuts to
+            further compress your prompts.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Rule Modal -->
+<div id="addRuleModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-md glow">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Add Custom Rule</h3>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Verbose
+                    Pattern</label>
+                <input type="text" name="pattern" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="e.g., Assembly Line B">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">
+                    Compressed Form
+                    <span class="ml-1 text-xs" style="color:var(--accent-amber);">(ideally 1–3 chars)</span>
+                </label>
+                <input type="text" name="replacement" required class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="e.g., AL-B">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Description</label>
+                <input type="text" name="description" class="w-full px-4 py-3 rounded-xl fi-input"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Optional note">
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Add Rule</button>
+                <button type="button" onclick="document.getElementById('addRuleModal').classList.add('hidden')"
+                    class="btn-secondary flex-1 py-3 text-center">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.style.borderColor = 'transparent';
+            b.style.color = 'var(--text-muted)';
+        });
+        document.getElementById('panel-' + tab).classList.remove('hidden');
+        const btn = document.getElementById('tab-' + tab);
+        btn.style.borderColor = 'var(--accent-amber)';
+        btn.style.color = 'var(--accent-amber)';
+    }
+</script>
+{% endblock %}

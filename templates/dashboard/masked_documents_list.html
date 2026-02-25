@@ -1,0 +1,232 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load dashboard_tags %}
+{% block title %}Clean Files{% endblock %}
+
+{% block dashboard_content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Clean Files (Masked)</h1>
+        <p style="color:var(--text-secondary);">Manage documents containing sensitive information. We securely mask PII
+            data like names, emails and IBAN numbers before processing.</p>
+    </div>
+    <button onclick="document.getElementById('uploadModal').classList.remove('hidden')"
+        class="btn-gradient text-sm px-5 py-2.5 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        Upload Sensitive Documents
+    </button>
+</div>
+
+<!-- Files List -->
+<div class="space-y-6">
+    <div class="glass-card p-6 border shadow-sm" style="border-color:var(--border-glass);">
+        <div class="flex items-center gap-3 mb-4 pb-3 border-b" style="border-color:var(--border-glass);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:var(--gradient-primary); color:white;">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold" style="color:var(--text-primary);">
+                    My Clean Documents
+                </h2>
+                <div class="text-xs" style="color:var(--text-muted);">{{ documents|length }} secure files</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for document in documents %}
+            <div class="glass-card p-5 cursor-pointer hover:-translate-y-1 transition-transform"
+                style="background:var(--bg-secondary);"
+                onclick="window.location.href='{% url 'dashboard:masked_document_chat' document.id %}'">
+                <div class="flex flex-col h-full">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl drop-shadow-sm">{{ document.filename|file_icon }}</span>
+                            <div>
+                                <h3 class="font-bold text-sm leading-tight" style="color:var(--text-primary);">
+                                    {{ document.filename }}
+                                </h3>
+                                <p class="text-[11px] mt-1 flex items-center gap-1" style="color:var(--text-muted);">
+                                    {{ document.created_at|date:"M d, Y H:i" }} &bull;
+                                    {{ document.file_size|filesizeformat }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-1">
+                        <div class="text-[10px] mb-2 font-bold tracking-wider" style="color:var(--accent-amber);">MASKED
+                            ENTITIES</div>
+                        <div class="flex flex-wrap gap-1">
+                            {% for mapping in document.key_mappings.all|slice:":5" %}
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border"
+                                style="background:rgba(84,119,146,0.1); border-color:var(--border-glass); color:var(--text-secondary);">
+                                {{ mapping.placeholder }}
+                            </span>
+                            {% empty %}
+                            <span class="text-xs italic" style="color:var(--text-muted);">No sensitive data
+                                detected.</span>
+                            {% endfor %}
+                            {% if document.key_mappings.count > 5 %}
+                            <span class="text-[10px] font-bold" style="color:var(--text-muted);">
+                                +{{ document.key_mappings.count|add:"-5" }} more
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t flex items-center justify-between"
+                        style="border-color:var(--border-glass);">
+                        <a href="{% url 'dashboard:masked_document_chat' document.id %}"
+                            class="text-xs font-bold hover:underline" style="color:var(--accent-amber);">Open Chat
+                            &rarr;</a>
+
+                        <div class="flex items-center gap-1">
+                            <a href="{% url 'dashboard:masked_document_preview_text' document.id %}"
+                                class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                                style="color:var(--accent-steel);" title="Preview Clean Text">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </a>
+                            <a href="{% url 'dashboard:masked_document_download_text' document.id %}"
+                                class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                                style="color:var(--accent-green);" title="Download Clean Text">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </a>
+
+                            {% if document.redacted_file %}
+                            <a href="{% url 'dashboard:masked_document_preview_pdf' document.id %}"
+                                class="p-1.5 rounded-lg transition-colors hover:bg-white/10 border"
+                                style="color:var(--text-primary); border-color:var(--accent-red);"
+                                title="Preview Redacted PDF">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </a>
+                            <a href="{% url 'dashboard:masked_document_download_pdf' document.id %}"
+                                class="p-1.5 rounded-lg transition-colors hover:bg-white/10 border"
+                                style="color:var(--text-primary); border-color:var(--accent-red);"
+                                title="Download Redacted PDF">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </a>
+                            {% endif %}
+                            <form method="post" class="inline"
+                                onsubmit="event.stopPropagation(); return confirm('Delete this file permanently?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="document_id" value="{{ document.id }}">
+                                <button type="submit" class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                                    style="color:var(--accent-red);" title="Delete File">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full py-12 text-center">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style="background:rgba(84,119,146,0.1); border:1px solid var(--border-glass);">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="color:var(--accent-steel);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold mb-2" style="color:var(--text-primary);">No Clean Files Yet</h3>
+                <p class="text-sm" style="color:var(--text-muted);">Upload your sensitive documents to safely interact
+                    with them using AI.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-card p-8 w-full max-w-lg glow">
+        <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Upload Sensitive Document</h3>
+        <p class="text-sm mb-4 leading-relaxed" style="color:var(--text-muted);">
+            Your file will be scanned for PII (Personally Identifiable Information). Detected entities will be replaced
+            with clean placeholders before hitting any external service.
+        </p>
+        <form method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            <div>
+                <div id="dropZone"
+                    class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all hover:bg-white/5"
+                    style="border-color:var(--border-glass); background:rgba(84,119,146,0.05);"
+                    onclick="document.getElementById('fileInput').click()">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                        style="background:rgba(250,185,91,0.1); color:var(--accent-amber);">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium" style="color:var(--text-primary);">Click or drag files here</p>
+                    <p class="text-xs mt-1" style="color:var(--text-muted);">PDF, DOCX, TXT, JSON (max 200MB)</p>
+                </div>
+                <input id="fileInput" type="file" name="files" multiple class="hidden" onchange="updateFileList(this)">
+                <div id="fileList" class="mt-3 space-y-2"></div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn-gradient flex-1 py-3 text-center">Mask & Upload</button>
+                <button type="button" onclick="document.getElementById('uploadModal').classList.add('hidden')"
+                    class="btn-secondary flex-1 py-3 text-center">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function updateFileList(input) {
+        const list = document.getElementById('fileList');
+        list.innerHTML = '';
+        if (input.files.length > 0) {
+            list.classList.add('p-3', 'rounded-lg');
+            list.style.background = 'var(--bg-glass)';
+            list.style.border = '1px solid var(--border-glass)';
+        }
+        for (const f of input.files) {
+            const div = document.createElement('div');
+            div.className = 'text-xs flex items-center justify-between py-1 border-b last:border-0';
+            div.style.borderColor = 'var(--border-glass)';
+            div.style.color = 'var(--text-primary)';
+            div.innerHTML = `
+                <span class="font-medium truncate pr-2">📄 ${f.name}</span>
+                <span style="color:var(--accent-steel);">${(f.size / 1024).toFixed(1)} KB</span>
+            `;
+            list.appendChild(div);
+        }
+    }
+
+    document.querySelector('#uploadModal form').addEventListener('submit', function (e) {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.innerHTML = 'Processing...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
+</script>
+{% endblock %}

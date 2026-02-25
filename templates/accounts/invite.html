@@ -1,0 +1,83 @@
+{% extends 'landing.html' %}
+
+{% block title %}Invite Team Member - Firma-KI{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center pt-20 pb-12 px-4 relative z-10">
+    <div class="glass-card max-w-md w-full p-8 rounded-2xl relative overflow-hidden group">
+        <!-- Decorative Glow -->
+        <div
+            class="absolute -top-24 -right-24 w-48 h-48 bg-white opacity-5 rounded-full blur-3xl group-hover:opacity-10 transition-opacity duration-700">
+        </div>
+        <div
+            class="absolute -bottom-24 -left-24 w-48 h-48 bg-[var(--accent-steel)] opacity-10 rounded-full blur-3xl group-hover:opacity-20 transition-opacity duration-700">
+        </div>
+
+        <!-- Header -->
+        <div class="text-center mb-8 relative z-10">
+            <div
+                class="w-16 h-16 mx-auto bg-gradient-to-br from-[var(--accent-steel)] to-gray-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/10 glow">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+            </div>
+            <h2 class="text-3xl font-bold mb-2" style="color: var(--text-primary);">Invite Team Member</h2>
+            <p class="text-sm" style="color: var(--text-secondary);">
+                Send an invitation to join your workspace.
+            </p>
+        </div>
+
+        <!-- Form -->
+        <form method="POST" class="space-y-5 relative z-10">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="block text-sm font-medium mb-2"
+                    style="color: var(--text-secondary);">
+                    {{ field.label }}
+                </label>
+                <div class="relative">
+                    {{ field }}
+                </div>
+                {% if field.errors %}
+                <p class="mt-1 text-xs text-red-400">{{ field.errors.0 }}</p>
+                {% endif %}
+                {% if field.help_text %}
+                <p class="mt-1 text-xs opacity-60" style="color: var(--text-muted);">{{ field.help_text }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <!-- Submit Button -->
+            <button type="submit"
+                class="w-full btn-gradient py-3.5 mt-4 rounded-xl font-bold flex items-center justify-center gap-2 group">
+                Send Invitation
+                <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="mt-8 pt-6 text-center text-sm border-t"
+            style="border-color: var(--border-glass); color: var(--text-muted);">
+            <a href="{% url 'dashboard:home' %}" class="font-medium hover:text-white transition-colors"
+                style="color: var(--accent-steel);">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

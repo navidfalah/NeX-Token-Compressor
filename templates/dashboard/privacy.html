@@ -1,0 +1,207 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Data Privacy{% endblock %}
+
+{% block dashboard_content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Data Privacy Hub</h1>
+    <p style="color:var(--text-secondary);">Configure GDPR-compliant PII masking before data routes to AI providers.</p>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <!-- AI-Powered Detection -->
+    <div class="glass-card p-6 mb-6"
+        style="background:linear-gradient(135deg,rgba(26,50,99,0.35),rgba(84,119,146,0.15)); border-color:rgba(250,185,91,0.15);">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:rgba(250,185,91,0.12);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-amber);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold" style="color:var(--text-primary);">AI-Powered Detection</h2>
+                <p class="text-sm" style="color:var(--text-muted);">Use AI pre-scan to detect names, IDs, and sensitive
+                    data beyond regex patterns.</p>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">Smart PII Detection</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">AI scans each request to find sensitive data
+                        that regex might miss</p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.ai_detection_enabled %}
+                    <input type="checkbox" name="ai_detection_enabled" checked>
+                    {% else %}
+                    <input type="checkbox" name="ai_detection_enabled">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">Internal IDs &amp; Codes</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">Auto-detect and mask internal document IDs,
+                        order numbers, project codes</p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_custom_ids %}
+                    <input type="checkbox" name="mask_custom_ids" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_custom_ids">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Standard PII Toggles -->
+    <div class="glass-card p-6 mb-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(74,222,128,0.1);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-green);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold" style="color:var(--text-primary);">Standard PII Masking</h2>
+                <p class="text-sm" style="color:var(--text-muted);">Regex-based masking of common PII categories.</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Personal Names -->
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">Personal Names</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">"John Smith" → <code
+                            style="color:var(--accent-amber);">[NAME_1]</code></p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_names %}
+                    <input type="checkbox" name="mask_names" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_names">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <!-- Email Addresses -->
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">Email Addresses</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">"user@company.de" → <code
+                            style="color:var(--accent-amber);">[EMAIL_1]</code></p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_emails %}
+                    <input type="checkbox" name="mask_emails" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_emails">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <!-- IBAN -->
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">IBAN Numbers</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">"DE89 3704…" → <code
+                            style="color:var(--accent-amber);">[IBAN_1]</code></p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_ibans %}
+                    <input type="checkbox" name="mask_ibans" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_ibans">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <!-- IP Addresses -->
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">IP Addresses</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">"192.168.1.1" → <code
+                            style="color:var(--accent-amber);">[IP_1]</code></p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_ips %}
+                    <input type="checkbox" name="mask_ips" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_ips">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <!-- Phone Numbers -->
+            <div class="flex items-center justify-between p-4 rounded-xl"
+                style="background:var(--code-bg); border:1px solid var(--border-glass);">
+                <div>
+                    <h3 class="font-medium" style="color:var(--text-primary);">Phone Numbers</h3>
+                    <p class="text-xs" style="color:var(--text-muted);">"+49 30 12345678" → <code
+                            style="color:var(--accent-amber);">[PHONE_1]</code></p>
+                </div>
+                <label class="toggle-switch">
+                    {% if config.mask_phone_numbers %}
+                    <input type="checkbox" name="mask_phone_numbers" checked>
+                    {% else %}
+                    <input type="checkbox" name="mask_phone_numbers">
+                    {% endif %}
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Regex -->
+    <div class="glass-card p-6 mb-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                style="background:rgba(84,119,146,0.15);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--accent-steel);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold" style="color:var(--text-primary);">Custom Regex Patterns</h2>
+                <p class="text-sm" style="color:var(--text-muted);">Define custom regex for proprietary data masking.
+                </p>
+            </div>
+        </div>
+        <textarea name="custom_regex_patterns" rows="5" class="w-full px-4 py-3 rounded-xl font-mono text-sm fi-input"
+            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+            placeholder="INTERNAL-\d{6}|||INTERNAL_ID&#10;\b[A-Z]{3}-\d{4}\b|||PROJECT_CODE">{{ config.custom_regex_patterns }}</textarea>
+        <p class="text-xs mt-2" style="color:var(--text-muted);">
+            Format: <code style="color:var(--text-secondary);">regex|||LABEL</code>
+            — e.g., <code style="color:var(--text-secondary);">INTERNAL-\d{6}|||INTERNAL_ID</code>
+        </p>
+    </div>
+
+    <div class="flex justify-end">
+        <button type="submit" class="btn-gradient px-8 py-3 inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Save Privacy Settings
+        </button>
+    </div>
+</form>
+{% endblock %}

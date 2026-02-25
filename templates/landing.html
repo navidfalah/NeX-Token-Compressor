@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Firma-KI{% endblock %}
+
+{% block body %}
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <!-- Logo -->
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-400 flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <span class="text-xl font-bold gradient-text">Firma-KI</span>
+        </div>
+
+        <!-- Nav Links -->
+        <div class="hidden md:flex items-center gap-8">
+            <a href="#features"
+                class="text-slate-400 hover:text-white transition-colors text-sm font-medium">Features</a>
+            <a href="#architecture"
+                class="text-slate-400 hover:text-white transition-colors text-sm font-medium">Architecture</a>
+            <a href="#pricing" class="text-slate-400 hover:text-white transition-colors text-sm font-medium">Pricing</a>
+        </div>
+
+        <!-- Auth Buttons -->
+        <div class="flex items-center gap-3">
+            {% if user.is_authenticated %}
+            <a href="{% url 'dashboard:home' %}" class="btn-gradient text-sm">Dashboard →</a>
+            {% else %}
+            <a href="{% url 'accounts:login' %}" class="btn-secondary text-sm px-4 py-2">Log In</a>
+            <a href="{% url 'accounts:register' %}" class="btn-gradient text-sm px-4 py-2">Start Free →</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="min-h-screen flex items-center relative overflow-hidden pt-20">
+    <!-- Floating orbs -->
+    <div class="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/8 rounded-full blur-3xl animate-float"
+        style="animation-delay: 1s;"></div>
+    <div class="absolute top-1/2 right-1/3 w-64 h-64 bg-cyan-500/6 rounded-full blur-3xl animate-float"
+        style="animation-delay: 2s;"></div>
+
+    <div class="max-w-7xl mx-auto px-6 py-20 relative z-10">
+        <div class="text-center max-w-4xl mx-auto">
+            <!-- Badge -->
+            <div
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8 animate-fade-in">
+                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse-glow"></span>
+                <span class="text-sm text-blue-300 font-medium">Now serving the European Mittelstand</span>
+            </div>
+
+            <!-- Headline -->
+            <h1 class="text-5xl md:text-7xl font-black leading-tight mb-6 animate-fade-in animate-delay-1">
+                The <span class="gradient-text">Semantic Firewall</span><br>
+                for Enterprise AI
+            </h1>
+
+            <!-- Subheadline -->
+            <p
+                class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in animate-delay-2">
+                Cut LLM costs by up to <span class="text-white font-semibold">70%</span>. Compress tokens, mask PII,
+                cache responses, and gain full analytical visibility — all through a single API endpoint change.
+            </p>
+
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in animate-delay-3">
+                <a href="{% url 'accounts:register' %}"
+                    class="btn-gradient text-lg px-8 py-4 inline-flex items-center justify-center gap-2">
+                    Start Free Trial
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                </a>
+                <a href="#architecture"
+                    class="btn-secondary text-lg px-8 py-4 inline-flex items-center justify-center gap-2">
+                    View Architecture
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Code snippet preview -->
+            <div class="glass-card p-6 max-w-2xl mx-auto text-left animate-fade-in animate-delay-4">
+                <div class="flex items-center gap-2 mb-4 text-slate-500 text-xs">
+                    <span class="w-3 h-3 rounded-full bg-red-500/60"></span>
+                    <span class="w-3 h-3 rounded-full bg-yellow-500/60"></span>
+                    <span class="w-3 h-3 rounded-full bg-green-500/60"></span>
+                    <span class="ml-2 font-mono">Zero-friction integration</span>
+                </div>
+                <code class="text-sm font-mono block">
+                    <span class="text-slate-500">// Just change your base URL. That's it.</span><br>
+                    <span class="text-purple-400">const</span> <span class="text-blue-300">client</span> = <span class="text-purple-400">new</span> <span class="text-cyan-300">OpenAI</span>({<br>
+                    <span class="text-slate-300 ml-4">baseURL:</span> <span class="text-green-400">"https://api.firma-ki.de/v1"</span>,<br>
+                    <span class="text-slate-300 ml-4">apiKey:</span> <span class="text-green-400">"fk-your-api-key"</span>,<br>
+                    });
+                </code>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Bar -->
+<section class="border-y border-white/5 bg-slate-950/50 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div class="text-center">
+            <div class="text-3xl md:text-4xl font-bold gradient-text">70%</div>
+            <div class="text-sm text-slate-500 mt-1">Cost Reduction</div>
+        </div>
+        <div class="text-center">
+            <div class="text-3xl md:text-4xl font-bold gradient-text">&lt;50ms</div>
+            <div class="text-sm text-slate-500 mt-1">Cache Latency</div>
+        </div>
+        <div class="text-center">
+            <div class="text-3xl md:text-4xl font-bold gradient-text">GDPR</div>
+            <div class="text-sm text-slate-500 mt-1">Compliant</div>
+        </div>
+        <div class="text-center">
+            <div class="text-3xl md:text-4xl font-bold gradient-text">0</div>
+            <div class="text-sm text-slate-500 mt-1">Code Rewrites</div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-24">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-5xl font-bold mb-4">Enterprise-Grade <span class="gradient-text">AI
+                    Infrastructure</span></h2>
+            <p class="text-lg text-slate-400 max-w-2xl mx-auto">Everything you need to secure, optimize, and monitor
+                your AI operations at scale.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Feature 1 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">Semantic Firewall</h3>
+                <p class="text-slate-400 leading-relaxed">Intercept, inspect, and sanitize every AI request. Block
+                    prompt injections and enforce security policies before data leaves your network.</p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">Token Compressor</h3>
+                <p class="text-slate-400 leading-relaxed">Our transpiler compresses verbose legacy payloads into dense
+                    bytecode. Reduce token consumption by up to 70% with zero information loss.</p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">Analytics Hub</h3>
+                <p class="text-slate-400 leading-relaxed">Real-time dashboards showing token consumption, cost savings
+                    in Euros, cache hit rates, and per-endpoint performance metrics.</p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">GDPR Privacy Hub</h3>
+                <p class="text-slate-400 leading-relaxed">One-click PII masking for names, emails, IBANs, and IP
+                    addresses. Custom regex builder for proprietary data. Fully GDPR compliant.</p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">Semantic Cache</h3>
+                <p class="text-slate-400 leading-relaxed">Intelligent prompt hashing caches identical requests. Return
+                    cached responses in under 50ms at zero cost. No redundant API calls.</p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="glass-card p-8 glow-hover">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center mb-6">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-3">Audit Explorer</h3>
+                <p class="text-slate-400 leading-relaxed">Deep-dive into every API call with split-screen views:
+                    Original Payload → Compressed Logic → Final Output. Full forensic traceability.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Architecture Section -->
+<section id="architecture" class="py-24 border-y border-white/5">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-5xl font-bold mb-4">System <span class="gradient-text">Architecture</span></h2>
+            <p class="text-lg text-slate-400 max-w-2xl mx-auto">One API endpoint change. Zero code rewrites. Complete
+                visibility.</p>
+        </div>
+
+        <!-- Architecture Flow -->
+        <div class="glass-card p-8 md:p-12">
+            <div class="grid md:grid-cols-7 gap-4 items-center text-center">
+                <!-- Step 1 -->
+                <div class="glass-card p-4">
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+                        </svg>
+                    </div>
+                    <div class="text-xs font-bold text-blue-300">Legacy System</div>
+                    <div class="text-xs text-slate-500 mt-1">Raw JSON</div>
+                </div>
+
+                <div class="hidden md:block text-slate-600">→</div>
+
+                <!-- Step 2 -->
+                <div class="glass-card p-4 border-blue-500/30">
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div class="text-xs font-bold text-purple-300">PII Masking</div>
+                    <div class="text-xs text-slate-500 mt-1">GDPR Filter</div>
+                </div>
+
+                <div class="hidden md:block text-slate-600">→</div>
+
+                <!-- Step 3 -->
+                <div class="glass-card p-4">
+                    <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <div class="text-xs font-bold text-cyan-300">Compressor</div>
+                    <div class="text-xs text-slate-500 mt-1">-70% Tokens</div>
+                </div>
+
+                <div class="hidden md:block text-slate-600">→</div>
+
+                <!-- Step 4 -->
+                <div class="glass-card p-4 border-green-500/20">
+                    <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div class="text-xs font-bold text-green-300">DeepSeek</div>
+                    <div class="text-xs text-slate-500 mt-1">AI Engine</div>
+                </div>
+            </div>
+
+            <div class="text-center mt-8 text-sm text-slate-500">
+                <span
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-green-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Perfect JSON Response returned to your legacy system
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-24">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+        <h2 class="text-3xl md:text-5xl font-bold mb-6">Ready to Optimize Your <span class="gradient-text">AI
+                Costs</span>?</h2>
+        <p class="text-lg text-slate-400 mb-10 max-w-2xl mx-auto">Join the European Mittelstand in building
+            cost-efficient, privacy-first AI infrastructure. No credit card required.</p>
+        <a href="{% url 'accounts:register' %}" class="btn-gradient text-lg px-10 py-4 inline-flex items-center gap-2">
+            Create Your Organization
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="border-t border-white/5 py-12">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-400 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <span class="font-bold text-slate-300">Firma-KI</span>
+                <span class="text-slate-600 text-sm">· firma-ki.de</span>
+            </div>
+            <div class="text-sm text-slate-600">
+                © 2025 Firma-KI. Built for the European Enterprise.
+            </div>
+        </div>
+    </div>
+</footer>
+{% endblock %}

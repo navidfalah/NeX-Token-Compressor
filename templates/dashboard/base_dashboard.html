@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load dashboard_tags %}
+
+{% block body %}
+<!-- Sidebar -->
+<aside class="sidebar">
+    <!-- Logo -->
+    <div class="p-5 border-b" style="border-color:var(--border-glass);">
+        <a href="{% url 'landing' %}" class="flex items-center gap-3" style="text-decoration:none;">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center"
+                style="background:var(--gradient-primary);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:var(--text-inverse);">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <div>
+                <span class="font-bold text-sm" style="color:var(--cream);">Firma-KI</span>
+                <span class="block text-xs" style="color:rgba(232,226,219,0.5);">
+                    {{ request.organization.name|default:"Dashboard" }}
+                </span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Nav Links -->
+    <nav class="py-4">
+        <div class="px-5 mb-3">
+            <span class="text-xs font-semibold uppercase tracking-widest"
+                style="color:rgba(84,119,146,0.7);">Analytics</span>
+        </div>
+        <a href="{% url 'dashboard:home' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Overview
+        </a>
+
+        <div class="px-5 mb-3 mt-6">
+            <span class="text-xs font-semibold uppercase tracking-widest"
+                style="color:rgba(84,119,146,0.7);">Configuration</span>
+        </div>
+        <a href="{% url 'dashboard:ai_providers' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'ai_providers' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            AI Providers
+        </a>
+        <a href="{% url 'dashboard:api_keys' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'api_keys' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            API Keys
+        </a>
+        <a href="{% url 'dashboard:rules' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'rules' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Compression Rules
+        </a>
+        <a href="{% url 'dashboard:privacy' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'privacy' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Data Privacy
+        </a>
+        <a href="{% url 'dashboard:security_audit' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'security_audit' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                </path>
+            </svg>
+            Security & Data Audit
+        </a>
+
+        <div class="px-5 mb-3 mt-6">
+            <span class="text-xs font-semibold uppercase tracking-widest"
+                style="color:rgba(84,119,146,0.7);">Tools</span>
+        </div>
+        <a href="{% url 'dashboard:file_analysis' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'file_analysis' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            File Analysis
+        </a>
+        <a href="{% url 'dashboard:secure_chat' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'secure_chat' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Secure Data Chat
+        </a>
+        <a href="{% url 'dashboard:masked_documents_list' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'masked_documents_list' or request.resolver_match.url_name == 'masked_document_chat' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+            </svg>
+            Clean Files
+        </a>
+        <a href="{% url 'dashboard:playground' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'playground' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            API Playground
+        </a>
+
+        <div class="px-5 mb-3 mt-6">
+            <span class="text-xs font-semibold uppercase tracking-widest"
+                style="color:rgba(84,119,146,0.7);">Monitoring</span>
+        </div>
+        <a href="{% url 'dashboard:audit_list' %}"
+            class="sidebar-link {% if 'audit' in request.resolver_match.url_name %}active{% endif %}"
+            style="position:relative;">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Audit Logs
+            {% if nex_requests_today > 0 %}
+            <span
+                style="margin-left:auto; background:rgba(34,197,94,0.2); color:#4ade80; border:1px solid rgba(34,197,94,0.3); font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; line-height:1.6;">
+                {{ nex_requests_today }}
+            </span>
+            {% endif %}
+        </a>
+        <a href="{% url 'dashboard:team' %}"
+            class="sidebar-link {% if request.resolver_match.url_name == 'team' %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Team &amp; Access
+        </a>
+    </nav>
+
+
+
+    <!-- User footer -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 border-t" style="border-color:var(--border-glass);">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                style="background:var(--gradient-primary); color:var(--text-inverse);">
+                {{ request.user.first_name.0 }}{{ request.user.last_name.0 }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold truncate" style="color:var(--cream);">
+                    {{ request.user.first_name }} {{ request.user.last_name }}
+                </div>
+                <div class="text-xs truncate" style="color:rgba(232,226,219,0.45);">
+                    {{ request.user.get_role_display }}
+                </div>
+            </div>
+            <!-- Theme toggle -->
+            <button onclick="toggleTheme()" class="theme-toggle" title="Toggle theme">
+                <svg class="w-4 h-4 icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <svg class="w-4 h-4 icon-sun" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+            <a href="{% url 'accounts:logout' %}" title="Sign out"
+                class="transition-colors hover:opacity-100 opacity-50" style="color:var(--accent-red);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </a>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+    <button onclick="document.querySelector('.sidebar').classList.toggle('open')"
+        class="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg border"
+        style="background:var(--bg-glass); border-color:var(--border-glass);">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-primary);">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+
+    {% block dashboard_content %}{% endblock %}
+</main>
+{% endblock %}

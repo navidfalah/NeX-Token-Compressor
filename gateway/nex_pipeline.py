@@ -178,19 +178,20 @@ def _get_provider_url_and_headers(provider) -> tuple[str, dict]:
     return url, headers
 
 
-def call_logic_provider_blocking(provider, nex_messages: list) -> tuple[str, int, int]:
+def call_logic_provider_blocking(provider, nex_messages: list, model: str = None, temperature: float = None) -> tuple[str, int, int]:
     """
     Stage 2 (blocking): Send NEX messages to the configured provider.
     Returns (nex_response_text, prompt_tokens, completion_tokens).
     """
     url, headers = _get_provider_url_and_headers(provider)
-    model = getattr(provider, "model_name", "") or (
+    resolved_model = model or getattr(provider, "model_name", "") or (
         "deepseek-chat" if provider.provider_type == "deepseek" else "gpt-4o"
     )
+    resolved_temp = temperature if temperature is not None else getattr(provider, "temperature", 0.7)
     payload = {
-        "model": model,
+        "model": resolved_model,
         "messages": nex_messages,
-        "temperature": getattr(provider, "temperature", 0.7),
+        "temperature": resolved_temp,
     }
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
@@ -290,18 +291,24 @@ def stream_translate_from_nex(nex_text: str, api_key: str = ""):
         yield nex_text  # degrade: return raw NEX if translation fails
 
 
-def translate_from_nex_blocking(nex_text: str) -> str:
+def translate_from_nex_blocking(nex_text: str) -> tuple[str, int, int]:
     """
     Stage 3 (blocking): DeepSeek translation of NEX → Human text.
-    Used in non-streaming endpoints like api_chat_update.
+    Returns (human_text, prompt_tokens_estimate, completion_tokens_estimate).
     """
     api_key = _get_system_deepseek_key()
     if not api_key:
-        return nex_text
+        return nex_text, 0, 0
 
     messages = [
         {"role": "system", "content": _STAGE3_SYSTEM},
         {"role": "user", "content": f"Translate this NEX to Human:\n{nex_text}"},
     ]
     result = _deepseek_call_blocking(messages, api_key, temperature=0.4)
-    return result if result else nex_text
+    if result:
+        # Estimate token counts from content length
+        prompt_tokens = max(1, len(nex_text) // 4)
+        completion_tokens = max(1, len(result) // 4)
+        return result, prompt_tokens, completion_tokens
+    return nex_text, 0, 0
+

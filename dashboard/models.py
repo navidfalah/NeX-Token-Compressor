@@ -463,6 +463,41 @@ class AuditLog(models.Model):
         return round((self.output_tokens_saved / self.tokens_translated) * 100, 1)
 
 
+class CascadeConfig(models.Model):
+    """
+    Configuration for Confidence-Driven Cascade Routing.
+    Routes requests to cheap model first, escalates to heavyweight if uncertain.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.OneToOneField(
+        'accounts.Organization', on_delete=models.CASCADE, related_name='cascade_config'
+    )
+    cheap_provider = models.ForeignKey(
+        AIProvider, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='cascade_cheap_configs',
+        help_text='Fast/cheap model for initial processing (e.g., GPT-4o-mini, Llama-3)'
+    )
+    heavyweight_provider = models.ForeignKey(
+        AIProvider, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='cascade_heavy_configs',
+        help_text='Heavyweight model for escalation (e.g., Claude 3.5 Sonnet, GPT-4)'
+    )
+    confidence_threshold = models.FloatField(
+        default=0.7,
+        help_text='Confidence score threshold (0.0-1.0). Below this triggers escalation.'
+    )
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Cascade Routing Config'
+        verbose_name_plural = 'Cascade Routing Configs'
+
+    def __str__(self):
+        return f"Cascade Config for {self.organization.name}"
+
+
 class MaskedDocument(models.Model):
     """
     A document where sensitive data has been replaced with placeholders.

@@ -1,6 +1,6 @@
 """
 Firma-KI Gateway — Models
-Semantic cache entries.
+Semantic cache entries with embedding support, MCP tool registry, and edge node config.
 """
 import uuid
 from django.db import models
@@ -9,6 +9,7 @@ from django.db import models
 class CacheEntry(models.Model):
     """
     Cached response for a given prompt hash.
+    Supports both exact-match (hash) and semantic (embedding) lookups.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -20,6 +21,20 @@ class CacheEntry(models.Model):
     hit_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     last_hit_at = models.DateTimeField(auto_now=True)
+
+    # Semantic cache fields
+    embedding_vector = models.TextField(
+        blank=True, default='',
+        help_text='JSON-serialized embedding vector for semantic similarity search'
+    )
+    embedding_model = models.CharField(
+        max_length=50, blank=True, default='default',
+        help_text='Which embedding model generated the vector'
+    )
+    domain = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text='Domain tag (e.g., medical, legal, finance) for domain-specific matching'
+    )
 
     class Meta:
         unique_together = ('organization', 'prompt_hash')

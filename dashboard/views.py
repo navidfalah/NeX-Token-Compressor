@@ -942,9 +942,13 @@ def api_secure_chat(request):
             chat_history.append({'role': msg.role, 'content': msg.content})
 
         # PII Masking on the user message
-        from gateway.compressor import PIIMasker
-        masker = PIIMasker()
-        masked_message, pii_entities = masker.mask(user_message), []
+        from gateway.pii_masker import PIIMasker
+        try:
+            pii_config = PIIConfig.objects.get(organization=org)
+        except PIIConfig.DoesNotExist:
+            pii_config = None
+        masker = PIIMasker(pii_config)
+        masked_message, pii_entities = masker.mask(user_message)
 
         start_time = time.time()
 
@@ -1159,11 +1163,15 @@ def api_chat_update(request):
         for m in session.messages.all():
             chat_history.append({'role': m.role, 'content': m.content})
 
-        from gateway.compressor import PIIMasker
+        from gateway.pii_masker import PIIMasker
         from gateway.nex_pipeline import compress_to_nex, call_logic_provider_blocking, translate_from_nex_blocking
 
         start_time = time.time()
-        masker = PIIMasker()
+        try:
+            pii_config = PIIConfig.objects.get(organization=org)
+        except PIIConfig.DoesNotExist:
+            pii_config = None
+        masker = PIIMasker(pii_config)
 
         # ---------------------------------------------------------------
         # STAGE 1: Convert full context + history + query → Logic Mission
@@ -1188,7 +1196,7 @@ def api_chat_update(request):
         # ---------------------------------------------------------------
         # STAGE 3: Translate NEX response → Human text (DeepSeek, blocking)
         # ---------------------------------------------------------------
-        final_ai_text = translate_from_nex_blocking(nex_output)
+        final_ai_text, _p3, _r3 = translate_from_nex_blocking(nex_output)
         final_ai_text = masker.unmask(final_ai_text)
 
         ChatMessage.objects.create(

@@ -69,14 +69,7 @@
             </svg>
             Compression Rules
         </a>
-        <a href="{% url 'dashboard:privacy' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'privacy' %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Data Privacy
-        </a>
+
         <a href="{% url 'dashboard:security_audit' %}"
             class="sidebar-link {% if request.resolver_match.url_name == 'security_audit' %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,37 +84,22 @@
             <span class="text-xs font-semibold uppercase tracking-widest"
                 style="color:rgba(84,119,146,0.7);">Tools</span>
         </div>
-        <a href="{% url 'dashboard:file_analysis' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'file_analysis' %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            File Analysis
-        </a>
-        <a href="{% url 'dashboard:secure_chat' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'secure_chat' %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            Secure Data Chat
-        </a>
-        <a href="{% url 'dashboard:masked_documents_list' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'masked_documents_list' or request.resolver_match.url_name == 'masked_document_chat' %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
-            </svg>
-            Clean Files
-        </a>
-        <a href="{% url 'dashboard:playground' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'playground' %}active{% endif %}">
+
+        <a href="{% url 'dashboard:mcp_tools' %}"
+            class="sidebar-link {% if 'mcp_tools' in request.resolver_match.url_name %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
-            API Playground
+            MCP Tools
+        </a>
+        <a href="{% url 'dashboard:edge_nodes' %}"
+            class="sidebar-link {% if 'edge_nodes' in request.resolver_match.url_name %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Edge Nodes
         </a>
 
         <div class="px-5 mb-3 mt-6">

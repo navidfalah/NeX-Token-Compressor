@@ -1,6 +1,6 @@
 """
 Firma-KI Dashboard — Models
-API Keys, AI Providers, Compression Rules, PII Config, File Analysis, and Audit Logs.
+API Keys, AI Providers, Compression Rules, File Analysis, and Audit Logs.
 """
 import uuid
 import secrets
@@ -209,129 +209,10 @@ class CompressionRule(models.Model):
 
 
 
-class Directory(models.Model):
-    """
-    A user-created folder/directory to organize file analysis uploads.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        'accounts.Organization', on_delete=models.CASCADE, related_name='directories'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='directories'
-    )
-    name = models.CharField(max_length=150)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        unique_together = ('organization', 'name')
-
-    def __str__(self):
-        return self.name
 
 
-class FileAnalysis(models.Model):
-    """
-    File uploaded for AI analysis.
-    """
-    STATUS_PENDING = 'pending'
-    STATUS_PROCESSING = 'processing'
-    STATUS_DONE = 'done'
-    STATUS_ERROR = 'error'
-    STATUS_CHOICES = [
-        (STATUS_PENDING, 'Pending'),
-        (STATUS_PROCESSING, 'Processing'),
-        (STATUS_DONE, 'Done'),
-        (STATUS_ERROR, 'Error'),
-    ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        'accounts.Organization', on_delete=models.CASCADE, related_name='file_analyses'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='file_analyses'
-    )
-    directory = models.ForeignKey(
-        Directory, on_delete=models.SET_NULL, null=True, blank=True, related_name='files'
-    )
-    ai_provider = models.ForeignKey(
-        AIProvider, on_delete=models.SET_NULL, null=True, blank=True, related_name='file_analyses'
-    )
-    file = models.FileField(upload_to='analysis_files/%Y/%m/')
-    filename = models.CharField(max_length=255)
-    file_size = models.BigIntegerField(default=0)
-    file_size = models.BigIntegerField(default=0)
-    prompt = models.TextField(
-        blank=True, default='Analyze the content of this file and provide a summary.',
-        help_text='Instructions for the AI when analyzing this file'
-    )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
-    result = models.TextField(blank=True, help_text='AI analysis result')
-    error_message = models.TextField(blank=True)
-    tokens_used = models.IntegerField(default=0)
-    cost = models.DecimalField(max_digits=10, decimal_places=6, default=0)
-    processing_time_ms = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'File Analysis'
-        verbose_name_plural = 'File Analyses'
-
-    def __str__(self):
-        return f"{self.filename} ({self.get_status_display()})"
 
 
-class ChatSession(models.Model):
-    """
-    A single chat thread in the Secure Data Chat.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        'accounts.Organization', on_delete=models.CASCADE, related_name='chat_sessions'
-    )
-    user = models.ForeignKey(
-        'accounts.User', on_delete=models.CASCADE, related_name='chat_sessions'
-    )
-    title = models.CharField(max_length=255, default="New Chat")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-updated_at']
-
-    def __str__(self):
-        return self.title
-
-
-class ChatMessage(models.Model):
-    """
-    A single message within a ChatSession.
-    """
-    ROLE_USER = 'user'
-    ROLE_AI = 'ai'
-    ROLE_CHOICES = [
-        (ROLE_USER, 'User'),
-        (ROLE_AI, 'AI'),
-    ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    session = models.ForeignKey(
-        ChatSession, on_delete=models.CASCADE, related_name='messages'
-    )
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['created_at']
-
-    def __str__(self):
-        return f"[{self.get_role_display()}] {self.content[:50]}..."
 
 
 class AuditLog(models.Model):

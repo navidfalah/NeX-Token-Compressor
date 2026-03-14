@@ -18,9 +18,8 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from dashboard.models import AuditLog, PIIConfig
+from dashboard.models import AuditLog
 from .authentication import authenticate_api_key, APIKeyAuthenticationError
-from .pii_masker import PIIMasker
 from .compression import DualEngineCompressor
 from .cache import SemanticCache
 from .deepseek_client import DeepSeekClient
@@ -71,47 +70,24 @@ class ChatCompletionsView(View):
             require_eu_sovereignty=True,
         )
 
-        # 4. PII Masking
-        try:
-            pii_config = PIIConfig.objects.get(organization=organization)
-        except PIIConfig.DoesNotExist:
-            pii_config = None
-
-        masker = PIIMasker(pii_config)
-        mask_map = {}
-        masked_messages = []
-
         # Inject Stage 1 NEX Generation rules
-        try:
-            from django.conf import settings
-            import os
-            rules_path = os.path.join(settings.BASE_DIR, 'COMPRESSION_RULES.md')
-            with open(rules_path, 'r', encoding='utf-8') as f:
-                nex_rules = f.read()
-            masked_messages.append({
-                'role': 'system',
-                'content': (
-                    "You are a highly efficient Firma-KI NEX compression engine. "
-                    "Answer the user's queries concisely and accurately in strict "
-                    "accordance with the core rules.\n\n"
-                    "CRITICAL INSTRUCTION: You must strictly output your logic in "
-                    f"NEX Bytecode according to the following framework:\n{nex_rules}"
-                )
-            })
-        except Exception as e:
-            print(f"Warning: Could not load COMPRESSION_RULES.md: {e}")
-
-        for msg in messages:
-            if msg.get('content'):
-                masked_content, msg_mask_map = masker.mask(msg['content'])
-                mask_map.update(msg_mask_map)
-                masked_messages.append({**msg, 'content': masked_content})
-            else:
-                masked_messages.append(msg)
+        from .prompts import NEX_COMPRESSION_RULES
+        
+        # Append as a system message to the front
+        messages.insert(0, {
+            'role': 'system',
+            'content': (
+                "You are a highly efficient Firma-KI NEX compression engine. "
+                "Answer the user's queries concisely and accurately in strict "
+                "accordance with the core rules.\n\n"
+                "CRITICAL INSTRUCTION: You must strictly output your logic in "
+                f"NEX Bytecode according to the following framework:\n{NEX_COMPRESSION_RULES}"
+            )
+        })
 
         # 5. Dual-Engine Generative Compression
         compressed_messages, compression_metadata = DualEngineCompressor.compress_messages(
-            masked_messages
+            messages
         )
         tokens_original = compression_metadata.get('total_original_tokens', 0)
         tokens_compressed = compression_metadata.get('total_compressed_tokens', 0)
@@ -125,9 +101,9 @@ class ChatCompletionsView(View):
 
         if cache_hit:
             latency_ms = int((time.time() - start_time) * 1000)
-            decoder = DeterministicDecoder(masker)
+            decoder = DeterministicDecoder()
             decoded_content = decoder.decode(
-                cached_response.get('content', ''), mask_map
+                cached_response.get('content', '')
             )
             cached_response['content'] = decoded_content
             response_data = decoder.format_openai_response(cached_response)
@@ -225,9 +201,9 @@ class ChatCompletionsView(View):
                 # --- STAGE 3: THIRD AI (EXPANDER) ---
                 final_text, p3, r3 = translate_from_nex_blocking(nex_output)
 
-                # Decode & re-inject PII
-                decoder = DeterministicDecoder(masker)
-                decoded_content = decoder.decode(final_text, mask_map)
+                # Stage 3 decode
+                decoder = DeterministicDecoder()
+                decoded_content = decoder.decode(final_text)
 
                 response_data = {
                     'id': 'chatcmpl-firmaki',

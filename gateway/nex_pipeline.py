@@ -183,32 +183,78 @@ def call_logic_provider_blocking(provider, nex_messages: list, model: str = None
     Stage 2 (blocking): Send NEX messages to the configured provider.
     Returns (nex_response_text, prompt_tokens, completion_tokens).
     """
-    url, headers = _get_provider_url_and_headers(provider)
-    resolved_model = model or getattr(provider, "model_name", "") or (
-        "deepseek-chat" if provider.provider_type == "deepseek" else "gpt-4o"
-    )
-    resolved_temp = temperature if temperature is not None else getattr(provider, "temperature", 0.7)
-    payload = {
-        "model": resolved_model,
-        "messages": nex_messages,
-        "temperature": resolved_temp,
-    }
-    req = urllib.request.Request(
-        url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-            content = body["choices"][0]["message"]["content"]
-            usage = body.get("usage", {})
-            return content, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace")
-        print(f"[NEX Stage 2] HTTPError {e.code}: {err_body[:300]}")
-        return "", 0, 0
-    except Exception as e:
-        print(f"[NEX Stage 2] {type(e).__name__}: {e}")
-        return "", 0, 0
+    provider_type = getattr(provider, "provider_type", "deepseek")
+    api_key = provider.api_key or ""
+    resolved_model = model or getattr(provider, "model_name", "")
+
+    if provider_type == "gemini":
+        resolved_model = resolved_model or "gemini-1.5-pro"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{resolved_model}:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        
+        # Convert OpenAI messages to Gemini contents
+        contents = []
+        system_instruction = None
+        
+        for msg in nex_messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                system_instruction = {"parts": [{"text": content}]}
+            else:
+                gemini_role = "model" if role == "assistant" else "user"
+                contents.append({"role": gemini_role, "parts": [{"text": content}]})
+                
+        payload = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": temperature if temperature is not None else getattr(provider, "temperature", 0.7)
+            }
+        }
+        if system_instruction:
+            payload["systemInstruction"] = system_instruction
+            
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+                content = body["candidates"][0]["content"]["parts"][0]["text"]
+                usage = body.get("usageMetadata", {})
+                return content, usage.get("promptTokenCount", 0), usage.get("candidatesTokenCount", 0)
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace")
+            print(f"[NEX Stage 2 Gemini] HTTPError {e.code}: {err_body[:300]}")
+            return "", 0, 0
+        except Exception as e:
+            print(f"[NEX Stage 2 Gemini] {type(e).__name__}: {e}")
+            return "", 0, 0
+            
+    else:
+        # Default OpenAI/DeepSeek logic
+        url, headers = _get_provider_url_and_headers(provider)
+        resolved_model = resolved_model or ("deepseek-chat" if provider_type == "deepseek" else "gpt-4o")
+        resolved_temp = temperature if temperature is not None else getattr(provider, "temperature", 0.7)
+        payload = {
+            "model": resolved_model,
+            "messages": nex_messages,
+            "temperature": resolved_temp,
+        }
+        req = urllib.request.Request(
+            url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+                content = body["choices"][0]["message"]["content"]
+                usage = body.get("usage", {})
+                return content, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace")
+            print(f"[NEX Stage 2] HTTPError {e.code}: {err_body[:300]}")
+            return "", 0, 0
+        except Exception as e:
+            print(f"[NEX Stage 2] {type(e).__name__}: {e}")
+            return "", 0, 0
 
 
 def stream_logic_provider(provider, nex_messages: list):

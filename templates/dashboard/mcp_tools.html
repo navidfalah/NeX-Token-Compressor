@@ -1,0 +1,31 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block title %}MCP Tools | Firma-KI{% endblock %}
+
+{% block dashboard_content %}
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight" style="color:var(--text-primary);">MCP Gateway Tools</h1>
+            <p class="text-sm mt-1" style="color:var(--accent-muted);">Configure and manage external tool endpoints for
+                Agent execution.</p>
+        </div>
+        <button class="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+            style="background:var(--gradient-primary); color:var(--text-inverse); box-shadow:0 4px 15px rgba(228,160,111,0.2);">
+            Add MCP Tool
+        </button>
+    </div>
+
+    <div class="p-8 rounded-xl border text-center"
+        style="background:var(--bg-glass); border-color:var(--border-glass);">
+        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            style="color:var(--accent-muted);">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+        </svg>
+        <h3 class="text-lg font-medium" style="color:var(--text-primary);">No MCP Tools configured</h3>
+        <p class="mt-2 text-sm" style="color:var(--text-secondary);">Add your first Model Context Protocol tool to
+            expand Agent capabilities.</p>
+    </div>
+</div>
+{% endblock %}

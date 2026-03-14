@@ -12,21 +12,16 @@ class DeterministicDecoder:
     and has PII re-injected.
     """
 
-    def __init__(self, pii_masker=None):
-        self.pii_masker = pii_masker
+    def __init__(self):
+        pass
 
-    def decode(self, response_content, mask_map=None):
+    def decode(self, response_content):
         """
         Post-process the DeepSeek response.
-        1. Re-inject masked PII values
-        2. Validate/fix JSON if applicable
-        3. Clean formatting
+        1. Validate/fix JSON if applicable
+        2. Clean formatting
         """
         result = response_content
-
-        # Re-inject PII
-        if self.pii_masker and mask_map:
-            result = self.pii_masker.unmask(result, mask_map)
 
         # Try to parse and re-format JSON responses
         result = self._try_format_json(result)

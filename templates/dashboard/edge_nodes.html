@@ -1,0 +1,32 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block title %}Edge Nodes | Firma-KI{% endblock %}
+
+{% block dashboard_content %}
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight" style="color:var(--text-primary);">Edge Processing Nodes</h1>
+            <p class="text-sm mt-1" style="color:var(--accent-muted);">Manage geographic processing zones for data
+                sovereignty.</p>
+        </div>
+        <button class="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+            style="background:var(--gradient-primary); color:var(--text-inverse); box-shadow:0 4px 15px rgba(228,160,111,0.2);">
+            Register Node
+        </button>
+    </div>
+
+    <div class="p-8 rounded-xl border text-center"
+        style="background:var(--bg-glass); border-color:var(--border-glass);">
+        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            style="color:var(--accent-muted);">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+            </path>
+        </svg>
+        <h3 class="text-lg font-medium" style="color:var(--text-primary);">Processing locally</h3>
+        <p class="mt-2 text-sm" style="color:var(--text-secondary);">All requests are currently routed to the primary
+            cluster region.</p>
+    </div>
+</div>
+{% endblock %}

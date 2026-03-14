@@ -2,7 +2,7 @@
 Firma-KI Dashboard — Admin Configuration
 """
 from django.contrib import admin
-from .models import APIKey, CompressionRule, PIIConfig, AuditLog
+from .models import APIKey, CompressionRule, AuditLog
 
 
 @admin.register(APIKey)
@@ -20,10 +20,7 @@ class CompressionRuleAdmin(admin.ModelAdmin):
     search_fields = ('pattern', 'replacement')
 
 
-@admin.register(PIIConfig)
-class PIIConfigAdmin(admin.ModelAdmin):
-    list_display = ('organization', 'mask_names', 'mask_emails', 'mask_ibans', 'mask_ips')
-    list_filter = ('mask_names', 'mask_emails')
+
 
 
 @admin.register(AuditLog)

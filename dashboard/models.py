@@ -47,9 +47,6 @@ class APIKey(models.Model):
     enable_compression = models.BooleanField(
         default=True, help_text='Apply compression rules to requests using this key'
     )
-    enable_pii_masking = models.BooleanField(
-        default=True, help_text='Apply PII masking to requests using this key'
-    )
     enable_caching = models.BooleanField(
         default=True, help_text='Enable semantic caching for this key'
     )
@@ -210,40 +207,6 @@ class CompressionRule(models.Model):
     def __str__(self):
         return f'[{self.get_rule_type_display()}] "{self.pattern}" → "{self.replacement}"'
 
-
-class PIIConfig(models.Model):
-    """
-    GDPR/PII masking configuration for an organization.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.OneToOneField(
-        'accounts.Organization', on_delete=models.CASCADE, related_name='pii_config'
-    )
-    mask_names = models.BooleanField(default=True, help_text='Mask personal names')
-    mask_emails = models.BooleanField(default=True, help_text='Mask email addresses')
-    mask_ibans = models.BooleanField(default=True, help_text='Mask IBAN numbers')
-    mask_ips = models.BooleanField(default=True, help_text='Mask IP addresses')
-    mask_phone_numbers = models.BooleanField(default=True, help_text='Mask phone numbers')
-    mask_custom_ids = models.BooleanField(
-        default=False,
-        help_text='Mask internal document/order IDs detected by AI'
-    )
-    ai_detection_enabled = models.BooleanField(
-        default=False,
-        help_text='Use AI pre-scan to detect PII beyond regex (names, internal IDs, etc.)'
-    )
-    custom_regex_patterns = models.TextField(
-        blank=True,
-        help_text='Custom regex patterns for masking, one per line. Format: pattern|||replacement'
-    )
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'PII Configuration'
-        verbose_name_plural = 'PII Configurations'
-
-    def __str__(self):
-        return f"PII Config for {self.organization.name}"
 
 
 class Directory(models.Model):
@@ -498,46 +461,4 @@ class CascadeConfig(models.Model):
         return f"Cascade Config for {self.organization.name}"
 
 
-class MaskedDocument(models.Model):
-    """
-    A document where sensitive data has been replaced with placeholders.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        'accounts.Organization', on_delete=models.CASCADE, related_name='masked_documents'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='masked_documents'
-    )
-    filename = models.CharField(max_length=255)
-    file_size = models.BigIntegerField(default=0)
-    clean_content = models.TextField(help_text='The text of the document with placeholders inserted')
-    redacted_file = models.FileField(upload_to='masked_docs/%Y/%m/', null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'Masked Document'
-        verbose_name_plural = 'Masked Documents'
-
-    def __str__(self):
-        return self.filename
-
-
-class DocumentKeyMapping(models.Model):
-    """
-    Maps a placeholder in a MaskedDocument back to its original value.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    document = models.ForeignKey(
-        MaskedDocument, on_delete=models.CASCADE, related_name='key_mappings'
-    )
-    placeholder = models.CharField(max_length=50, help_text='e.g., [EMAIL_1]')
-    original_value = models.CharField(max_length=500)
-    pii_type = models.CharField(max_length=50)
-
-    class Meta:
-        ordering = ['id']
-
-    def __str__(self):
-        return f"{self.placeholder} -> {self.original_value}"

@@ -1,239 +1,110 @@
 """
-Firma-KI Gateway — Confidence-Driven Cascade Router
-Dynamically routes requests based on real-time Uncertainty Estimation.
-Default to cheap model → measure confidence → auto-escalate if uncertain.
+Firma-KI Gateway — Dynamic Cascade Router (MVP Edition)
+Tier 1 (DeepSeek) -> Tier 2 (Gemini)
 """
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.dashboard import CascadeConfig
 
-
 class CascadeRouter:
     """
-    Confidence-Driven Cascade Routing.
-    
-    All incoming requests default to a lightning-fast, ultra-cheap model.
-    The router measures the model's 'confidence score' in the response.
-    If the model exhibits high uncertainty or hallucination risks, the request
-    is instantly escalated to a heavyweight model.
-    
-    Result: Enterprise-grade output quality at the absolute lowest possible
-    average cost per query.
+    Dynamic Cascade Routing.
+    Routes requests based on deterministic heuristics and response confidence.
     """
 
-    # Default confidence threshold — below this triggers escalation
     DEFAULT_THRESHOLD = 0.7
 
-    # Uncertainty markers and their weights
-    UNCERTAINTY_PATTERNS = [
-        # Hedging language
-        (r'\bI think\b', 0.15),
-        (r'\bI believe\b', 0.12),
-        (r'\bpossibly\b', 0.15),
-        (r'\bperhaps\b', 0.15),
-        (r'\bmaybe\b', 0.15),
-        (r'\bprobably\b', 0.10),
-        (r'\bmight\b', 0.10),
-        (r'\bcould be\b', 0.12),
-        (r'\bnot sure\b', 0.20),
-        (r"\bI'm not certain\b", 0.25),
-        (r"\bI don't know\b", 0.30),
-        (r'\bunsure\b', 0.20),
-        (r'\bapproximate(?:ly)?\b', 0.08),
-        # Contradiction signals
-        (r'\bhowever.*but\b', 0.10),
-        (r'\bon the other hand\b', 0.08),
-        # Hallucination risk signals
-        (r'\bAs of my (?:last |knowledge )?(?:update|training)\b', 0.25),
-        (r'\bI cannot (?:verify|confirm)\b', 0.20),
-        (r'\bplease verify\b', 0.15),
-        (r'\bthis information (?:may|might) (?:be|not be) (?:accurate|current)\b', 0.20),
+    COMPLEXITY_KEYWORDS = [
+        r'\bcalculate\b', r'\bderive\b', r'\bprove\b', r'\bintegrate\b', 
+        r'\bdifferential\b', r'\bequation\b', r'\balgorithm\b', r'\boptimize\b',
+        r'\brefactor\b', r'\barchitect\b', r'\bdesign pattern\b', r'\bunified\b',
+        r'\bquantum\b', r'\bcryptograph\b', r'\bcomplex\b', r'\banalyze\b'
     ]
+    
+    COMPLEXITY_LENGTH_THRESHOLD = 2000 # words
 
-    # Patterns indicating high confidence (boost score)
-    CONFIDENCE_PATTERNS = [
-        (r'\bdefinitely\b', 0.10),
-        (r'\bcertainly\b', 0.10),
-        (r'\bthe answer is\b', 0.08),
-        (r'\bspecifically\b', 0.05),
-        (r'\baccording to\b', 0.08),
-        (r'\bcorrect(?:ly)?\b', 0.05),
+    UNCERTAINTY_PATTERNS = [
+        (r'\bI think\b', 0.15), (r'\bI believe\b', 0.12), (r'\bpossibly\b', 0.15),
+        (r'\bperhaps\b', 0.15), (r'\bmaybe\b', 0.15), (r'\bnot sure\b', 0.20),
+        (r"\bI don't know\b", 0.30), (r'\bunsure\b', 0.20),
     ]
 
     def __init__(self, cheap_provider=None, heavyweight_provider=None,
                  confidence_threshold: float = None):
-        """
-        Args:
-            cheap_provider: AIProvider instance for the fast/cheap model
-            heavyweight_provider: AIProvider instance for the powerful model
-            confidence_threshold: Override default threshold (0.0-1.0)
-        """
         self.cheap_provider = cheap_provider
         self.heavyweight_provider = heavyweight_provider
         self.threshold = confidence_threshold or self.DEFAULT_THRESHOLD
 
-    def estimate_confidence(self, response_text: str) -> tuple[float, dict]:
-        """
-        Estimate confidence score of a model's response.
-        
-        Analyzes the response text for uncertainty markers, brevity,
-        repetition, and coherence signals.
-        
-        Returns:
-            (confidence_score, analysis_details) where score is 0.0-1.0
-        """
+    def is_complex(self, prompt: str) -> bool:
+        """Determines if a prompt is complex based on deterministic heuristics."""
+        if len(prompt.split()) > self.COMPLEXITY_LENGTH_THRESHOLD:
+            return True
+        for pattern in self.COMPLEXITY_KEYWORDS:
+            if re.search(pattern, prompt, re.IGNORECASE):
+                return True
+        if "[HEAVY]" in prompt.upper() or "[COMPLEX]" in prompt.upper():
+            return True
+        return False
+
+    def estimate_confidence(self, response_text: str) -> float:
+        """Estimates confidence score of a response."""
         if not response_text or not response_text.strip():
-            return 0.0, {'reason': 'empty_response', 'factors': {}}
-
-        factors = {}
+            return 0.0
         penalty = 0.0
-        boost = 0.0
-
-        # Factor 1: Uncertainty language patterns
         for pattern, weight in self.UNCERTAINTY_PATTERNS:
             matches = re.findall(pattern, response_text, re.IGNORECASE)
-            if matches:
-                penalty += weight * len(matches)
-                factors[f'uncertainty:{pattern}'] = len(matches)
+            penalty += weight * len(matches)
+        
+        return max(0.0, 1.0 - penalty)
 
-        # Factor 2: Confidence language patterns (countervail)
-        for pattern, weight in self.CONFIDENCE_PATTERNS:
-            matches = re.findall(pattern, response_text, re.IGNORECASE)
-            if matches:
-                boost += weight * len(matches)
-                factors[f'confidence:{pattern}'] = len(matches)
-
-        # Factor 3: Response brevity (very short responses are suspicious)
-        word_count = len(response_text.split())
-        if word_count < 10:
-            penalty += 0.25
-            factors['brevity_penalty'] = word_count
-        elif word_count < 5:
-            penalty += 0.40
-            factors['extreme_brevity'] = word_count
-
-        # Factor 4: Repetition detection (sign of hallucination)
-        sentences = re.split(r'[.!?]+', response_text)
-        if len(sentences) > 3:
-            unique_sentences = set(s.strip().lower() for s in sentences if s.strip())
-            repetition_ratio = 1 - (len(unique_sentences) / len(sentences))
-            if repetition_ratio > 0.3:
-                penalty += repetition_ratio * 0.3
-                factors['repetition_ratio'] = round(repetition_ratio, 3)
-
-        # Factor 5: Contains code blocks (higher confidence, structured response)
-        if re.search(r'```[\s\S]*?```', response_text):
-            boost += 0.15
-            factors['has_code_block'] = True
-
-        # Factor 6: Contains specific data (numbers, URLs, references)
-        data_matches = len(re.findall(r'\b\d+(?:\.\d+)?(?:%|€|\$|ms|s|MB|KB|GB)\b', response_text))
-        if data_matches > 0:
-            boost += min(data_matches * 0.03, 0.15)
-            factors['specific_data_points'] = data_matches
-
-        # Calculate final confidence score
-        raw_score = 1.0 - penalty + boost
-        confidence = max(0.0, min(1.0, raw_score))
-
-        return confidence, {
-            'penalty': round(penalty, 4),
-            'boost': round(boost, 4),
-            'raw_score': round(raw_score, 4),
-            'factors': factors,
-        }
-
-    def should_escalate(self, response_text: str) -> tuple[bool, float, dict]:
+    async def route(self, messages: list, call_fn_async) -> tuple[str, dict]:
         """
-        Determine if a response should trigger escalation to heavyweight model.
-        
-        Returns:
-            (should_escalate, confidence_score, analysis_details)
+        Execute the Dynamic Cascade Routing strategy.
+        Tier 1: DeepSeek (Default)
+        Tier 2: Gemini (Escalation)
         """
-        confidence, details = self.estimate_confidence(response_text)
-        escalate = confidence < self.threshold
+        metadata = {'strategy': 'dynamic_cascade', 'stages': []}
+        user_prompt = messages[-1]['content'] if messages else ""
         
-        details['threshold'] = self.threshold
-        details['decision'] = 'escalate' if escalate else 'accept'
-        
-        return escalate, confidence, details
+        # 1. Deterministic Check
+        if self.is_complex(user_prompt):
+            metadata['decision'] = 'direct_to_heavy'
+            if self.heavyweight_provider:
+                res, pt, ct = await call_fn_async(self.heavyweight_provider, messages)
+                metadata['stages'].append({'heavy_model': {'prompt_tokens': pt, 'completion_tokens': ct}})
+                return res, metadata
 
-    def route(self, messages: list, call_fn) -> tuple[str, dict]:
-        """
-        Execute the cascade routing strategy.
-        
-        1. Call cheap model first
-        2. Evaluate confidence
-        3. If low confidence, re-call with heavyweight model
-        
-        Args:
-            messages: OpenAI-format message list
-            call_fn: Callable(provider, messages) -> (response_text, prompt_tokens, completion_tokens)
-            
-        Returns:
-            (final_response_text, routing_metadata)
-        """
-        metadata = {'strategy': 'cascade', 'stages': []}
-
-        # Stage 1: Cheap model
+        # 2. Tier 1: DeepSeek
         if self.cheap_provider:
-            cheap_response, p_tokens, c_tokens = call_fn(
-                self.cheap_provider, messages
-            )
+            cheap_res, pt, ct = await call_fn_async(self.cheap_provider, messages)
+            confidence = self.estimate_confidence(cheap_res)
             
-            stage1_meta = {
-                'model': getattr(self.cheap_provider, 'name', 'cheap'),
-                'prompt_tokens': p_tokens,
-                'completion_tokens': c_tokens,
-            }
+            metadata['stages'].append({
+                'cheap_model': {
+                    'prompt_tokens': pt, 
+                    'completion_tokens': ct,
+                    'confidence': confidence
+                }
+            })
 
-            escalate, confidence, analysis = self.should_escalate(cheap_response)
-            stage1_meta['confidence'] = round(confidence, 4)
-            stage1_meta['analysis'] = analysis
-            metadata['stages'].append({'cheap_model': stage1_meta})
-
-            if not escalate:
-                metadata['final_model'] = stage1_meta['model']
+            if confidence >= self.threshold:
                 metadata['escalated'] = False
-                metadata['total_cost_tokens'] = p_tokens + c_tokens
-                return cheap_response, metadata
-
-        # Stage 2: Heavyweight model (escalation)
-        if self.heavyweight_provider:
-            heavy_response, p_tokens, c_tokens = call_fn(
-                self.heavyweight_provider, messages
-            )
+                return cheap_res, metadata
             
-            stage2_meta = {
-                'model': getattr(self.heavyweight_provider, 'name', 'heavyweight'),
-                'prompt_tokens': p_tokens,
-                'completion_tokens': c_tokens,
-            }
-            metadata['stages'].append({'heavyweight_model': stage2_meta})
-            metadata['final_model'] = stage2_meta['model']
             metadata['escalated'] = True
-            metadata['total_cost_tokens'] = p_tokens + c_tokens
-            
-            return heavy_response, metadata
 
-        # Fallback: no providers configured, return cheap response
-        metadata['escalated'] = False
-        metadata['final_model'] = 'fallback'
-        return cheap_response if 'cheap_response' in dir() else '', metadata
+        # 3. Tier 2: Gemini (Escalation)
+        if self.heavyweight_provider:
+            res, pt, ct = await call_fn_async(self.heavyweight_provider, messages)
+            metadata['stages'].append({'heavy_model': {'prompt_tokens': pt, 'completion_tokens': ct}})
+            return res, metadata
 
+        return cheap_res if 'cheap_res' in locals() else "", metadata
 
 class CascadeConfigLoader:
-    """
-    Loads cascade routing configuration from the database.
-    """
-    
     @staticmethod
     async def load_for_organization_async(db: AsyncSession, organization) -> 'CascadeRouter':
-        """
-        Load or create cascade routing config for an organization.
-        Returns a configured CascadeRouter instance.
-        """
         try:
             from sqlalchemy.orm import selectinload
             stmt = select(CascadeConfig).options(
@@ -245,7 +116,6 @@ class CascadeConfigLoader:
             )
             result = await db.execute(stmt)
             config = result.scalar_one_or_none()
-            
             if config:
                 return CascadeRouter(
                     cheap_provider=config.cheap_provider,
@@ -254,6 +124,4 @@ class CascadeConfigLoader:
                 )
         except Exception as e:
             print(f"Error loading cascade config: {e}")
-            
         return CascadeRouter()
-

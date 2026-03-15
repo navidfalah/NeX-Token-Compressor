@@ -33,7 +33,7 @@
                         </div>
                         <div>
                             <div class="font-medium" style="color:var(--text-primary);">
-                                {{ ms.user.first_name|default:"—" }} {{ ms.user.last_name|default:"—" }}
+                                {{ ms.user.first_name|default("—") }} {{ ms.user.last_name|default("—") }}
                             </div>
                             <div class="text-xs" style="color:var(--text-muted);">
                                 @{{ ms.user.username or "—" }}
@@ -50,7 +50,7 @@
                 </td>
                 <td class="text-sm" style="color:var(--text-secondary);">{{ ms.user.email or "—" }}</td>
                 <td class="text-center font-medium" style="color:var(--text-primary);">
-                    {{ ms.active_keys|default:"0" }}
+                    {{ ms.active_keys|default(0) }}
                 </td>
                 <td class="text-center font-medium" style="color:var(--text-primary);">
                     {{ ms.requests or "0" }}
@@ -110,7 +110,7 @@
                 </div>
                 <div>
                     <span class="text-sm font-medium" style="color:var(--text-primary);">
-                        {{ inv.email|default:"—" }}
+                        {{ inv.email|default("—") }}
                     </span>
                     <span class="text-xs ml-2" style="color:var(--text-muted);">
                         Invited {{ inv.created_at|timesince_short if inv.created_at else "Unknown" }}

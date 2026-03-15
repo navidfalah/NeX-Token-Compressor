@@ -1,38 +1,46 @@
 """
 Firma-KI Gateway — API Key Authentication
-Validates Bearer tokens against the APIKey model.
+Validates Bearer tokens against the APIKey model using SQLAlchemy.
 """
-from models.dashboard import APIKey
-from django.utils import timezone
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from sqlalchemy import func
+from datetime import datetime
 
+from models.dashboard import APIKey
+from api.dependencies import get_db
 
 class APIKeyAuthenticationError(Exception):
     pass
 
-
-def authenticate_api_key(request):
+async def authenticate_api_key(request, db):
     """
     Extract and validate the API key from the Authorization header.
     Returns (api_key, organization) tuple.
     Raises APIKeyAuthenticationError on failure.
     """
-    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    auth_header = request.headers.get('Authorization', '')
 
     if not auth_header.startswith('Bearer '):
         raise APIKeyAuthenticationError('Missing or invalid Authorization header. Use: Bearer <api_key>')
 
     key_value = auth_header[7:].strip()
 
-    try:
-        api_key = APIKey.objects.select_related('organization', 'user').get(
-            key=key_value,
-            is_active=True,
-        )
-    except APIKey.DoesNotExist:
+    stmt = select(APIKey).options(
+        selectinload(APIKey.organization)
+    ).where(
+        APIKey.key == key_value,
+        APIKey.is_active == True,
+    )
+    
+    result = await db.execute(stmt)
+    api_key = result.scalar_one_or_none()
+    
+    if not api_key:
         raise APIKeyAuthenticationError('Invalid or revoked API key.')
 
     # Update last used timestamp
-    api_key.last_used_at = timezone.now()
-    api_key.save(update_fields=['last_used_at'])
+    api_key.last_used_at = datetime.utcnow()
+    await db.commit()
 
     return api_key, api_key.organization

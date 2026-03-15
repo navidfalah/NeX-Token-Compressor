@@ -32,31 +32,28 @@
         <form method="POST" class="space-y-5 relative z-10">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
 
-            {% if form.non_field_errors %}
+            {% if error %}
             <div class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {% for error in form.non_field_errors %}
                 <p>{{ error }}</p>
-                {% endfor %}
             </div>
             {% endif %}
 
-            {% for field in form %}
             <div>
-                <label for="{{ field.id_for_label }}" class="block text-sm font-medium mb-2"
-                    style="color: var(--text-secondary);">
-                    {{ field.label }}
-                </label>
-                <div class="relative">
-                    {{ field }}
-                </div>
-                {% if field.errors %}
-                <p class="mt-1 text-xs text-red-400">{{ field.errors.0 }}</p>
-                {% endif %}
-                {% if field.help_text %}
-                <p class="mt-1 text-xs opacity-60" style="color: var(--text-muted);">{{ field.help_text }}</p>
-                {% endif %}
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Email Address</label>
+                <input type="email" name="email" required
+                    class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="teammate@organization.com">
             </div>
-            {% endfor %}
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Role</label>
+                <select name="role" required
+                    class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                    <option value="member">Team Member</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
 
             <!-- Submit Button -->
             <button type="submit"

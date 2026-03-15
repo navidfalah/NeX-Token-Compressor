@@ -28,7 +28,7 @@
 
         <!-- Auth Buttons -->
         <div class="flex items-center gap-3">
-            {% if user.is_authenticated %}
+            {% if user and user.id %}
             <a href="{{ url_for('dashboard_home') }}" class="btn-gradient text-sm">Dashboard →</a>
             {% else %}
             <a href="{{ url_for('accounts_login') }}" class="btn-secondary text-sm px-4 py-2">Log In</a>

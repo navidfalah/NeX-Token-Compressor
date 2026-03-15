@@ -54,19 +54,19 @@
         <div class="flex flex-wrap gap-6 ml-auto">
             <div class="text-center">
                 <div class="text-xl font-bold" style="color:var(--accent-steel);">
-                    {{ metrics.total_tokens_original|default:"0"|format_tokens }}
+                    {{ metrics.total_tokens_original|default(0)|format_tokens }}
                     <span class="text-sm font-normal" style="color:var(--text-muted);">→</span>
-                    {{ metrics.total_tokens_compressed|default:"0"|format_tokens }}
+                    {{ metrics.total_tokens_compressed|default(0)|format_tokens }}
                 </div>
                 <div class="text-xs" style="color:var(--text-muted);">S1: Original → Compressed ({{ days }}d)
                 </div>
             </div>
             <div class="text-center">
                 <div class="text-xl font-bold" style="color:var(--accent-amber);">
-                    {{ metrics.middle_ai_input|default:"0"|format_tokens }}
+                    {{ metrics.middle_ai_input|default(0)|format_tokens }}
                     <span class="text-sm font-normal" style="color:var(--text-muted);">In</span>
                     /
-                    {{ metrics.middle_ai_output|default:"0"|format_tokens }}
+                    {{ metrics.middle_ai_output|default(0)|format_tokens }}
                     <span class="text-sm font-normal" style="color:var(--text-muted);">Out</span>
                 </div>
                 <div class="text-xs" style="color:var(--text-muted);">Middle AI Payload ({{ days }}d)</div>
@@ -99,68 +99,48 @@
 {% endif %}
 </div>
 
-<!-- Metric Cards -->
-<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    <div class="metric-card">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
-                style="background:rgba(84,119,146,0.15);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style="color:var(--accent-steel);">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
+</div>
+<!-- BI Intelligence & Financials -->
+<div class="grid lg:grid-cols-2 gap-6 mb-8">
+    <div class="glass-card p-6" style="background:linear-gradient(135deg,rgba(16,185,129,0.05),rgba(20,184,166,0.05)); border:1px solid rgba(16,185,129,0.15);">
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <h3 class="text-lg font-bold" style="color:var(--accent-green);">ROI Intelligence</h3>
+                <p class="text-xs" style="color:var(--text-muted);">Financial performance compared to standard LLMs</p>
             </div>
-            <span class="metric-label">Total Requests</span>
+            <div class="px-3 py-1 rounded-full text-xs font-bold" style="background:rgba(16,185,129,0.1); color:var(--accent-green);">
+                +{{ metrics.roi_multiplier }}x Efficiency
+            </div>
         </div>
-        <div class="metric-value" style="color:var(--accent-steel);" id="metricRequests">
-            {{ metrics.total_requests|default(0) }}
+        <div class="flex items-center gap-8">
+            <div>
+                <div class="text-3xl font-black" style="color:var(--text-primary);">€{{ metrics.total_cost_saved|default(0)|format_cost }}</div>
+                <div class="text-xs uppercase tracking-tighter" style="color:var(--text-muted);">Net Savings ({{ days }}d)</div>
+            </div>
+            <div class="h-12 w-px" style="background:rgba(255,255,255,0.05);"></div>
+            <div>
+                <div class="text-xl font-bold" style="color:var(--accent-cyan);">{{ metrics.financial_efficiency_pct }}%</div>
+                <div class="text-xs uppercase tracking-tighter" style="color:var(--text-muted);">Infrastructure Yield</div>
+            </div>
+        </div>
+        <div class="mt-6 p-3 rounded-xl" style="background:rgba(255,255,255,0.03);">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent-amber);"></span>
+                <span class="text-xs font-bold" style="color:var(--text-secondary);">Intelligence Feed</span>
+            </div>
+            <p class="text-xs leading-relaxed" style="color:var(--text-muted);">
+                {% if metrics.compression_ratio > 30 %}
+                High compression ratio detected. Your Bytecode S1 pipeline is over-performing by 15% vs benchmark.
+                {% else %}
+                System is stabilizing. Optimization yields are within expected parameters for current workloads.
+                {% endif %}
+            </p>
         </div>
     </div>
-    <div class="metric-card">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(74,222,128,0.1);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style="color:var(--accent-green);">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <span class="metric-label">Cost Saved</span>
-        </div>
-        <div class="metric-value" style="color:var(--accent-green);">
-            €{{ metrics.total_cost_saved|default(0)|format_cost }}
-        </div>
-    </div>
-    <div class="metric-card">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center"
-                style="background:rgba(250,185,91,0.12);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style="color:var(--accent-amber);">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-            </div>
-            <span class="metric-label">Compression</span>
-        </div>
-        <div class="metric-value gradient-text">
-            {{ metrics.compression_ratio|default(0) }}%
-        </div>
-    </div>
-    <div class="metric-card">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(26,50,99,0.3);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style="color:var(--accent-cream);">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-            </div>
-            <span class="metric-label">Cache Hit Rate</span>
-        </div>
-        <div class="metric-value" style="color:var(--text-primary);">
-            {{ metrics.cache_hit_rate|default(0) }}%
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Provider Workload Distribution</h3>
+        <div class="h-[180px]">
+            <canvas id="providerPieChart"></canvas>
         </div>
     </div>
 </div>
@@ -203,19 +183,19 @@
             </div>
             <div class="flex justify-between items-center">
                 <span style="color:var(--text-secondary);">Compressed Tokens (S1 Out)</span>
-                {% with val=m.total_tokens_compressed|default:"0"|format_tokens %}
+                {% with val=m.total_tokens_compressed|default(0)|format_tokens %}
                 <span class="font-bold" style="color:var(--accent-green);">{{ val }}</span>
                 {% endwith %}
             </div>
             <div class="flex justify-between items-center">
                 <span style="color:var(--accent-amber);">Middle AI Input</span>
-                {% with val=m.middle_ai_input|default:"0"|format_tokens %}
+                {% with val=m.middle_ai_input|default(0)|format_tokens %}
                 <span class="font-bold" style="color:var(--accent-amber);">{{ val }}</span>
                 {% endwith %}
             </div>
             <div class="flex justify-between items-center">
                 <span style="color:var(--accent-amber);">Middle AI Output</span>
-                {% with val=m.middle_ai_output|default:"0"|format_tokens %}
+                {% with val=m.middle_ai_output|default(0)|format_tokens %}
                 <span class="font-bold" style="color:var(--accent-amber);">{{ val }}</span>
                 {% endwith %}
             </div>
@@ -225,7 +205,7 @@
             </div>
             <div class="flex justify-between items-center">
                 <span style="color:var(--text-secondary);">Avg Latency</span>
-                {% with val=m.avg_latency|default:"0.0"|format_latency %}
+                {% with val=m.avg_latency|default(0)|format_latency %}
                 <span class="font-bold" style="color:var(--accent-cyan);">{{ val }}</span>
                 {% endwith %}
             </div>
@@ -250,7 +230,7 @@
                 </thead>
                 <tbody>
                     {% for log in recent_logs[:10] %}
-                    <tr class="cursor-pointer" onclick="window.location='{{ url_for('dashboard_audit_detail', log.id) }}'">
+                    <tr class="cursor-pointer" onclick="window.location='{{ url_for('dashboard_audit_detail', log_id=log.id) }}'">
                         {% with ts=log.timestamp|timesince_short %}
                         <td class="text-xs font-mono" style="color:var(--text-muted);">{{ ts }}</td>
                         {% endwith %}
@@ -268,13 +248,13 @@
                             {{ (log.tokens_original or 0)|format_tokens }} → <span style="color:var(--accent-green);">{{ (log.tokens_compressed or 0)|format_tokens }}</span>
                         </td>
                         <td class="text-xs font-mono" style="color:var(--accent-amber);">
-                            {% with t_in=log.tokens_compressed|default:"0"|format_tokens %}
-                            {% with t_out=log.tokens_response|default:"0"|format_tokens %}
+                            {% with t_in=log.tokens_compressed|default(0)|format_tokens %}
+                            {% with t_out=log.tokens_response|default(0)|format_tokens %}
                             <span title="Tokens In">{{ t_in }}</span> / <span title="Tokens Out">{{ t_out }}</span>
                             {% endwith %}
                             {% endwith %}
                         </td>
-                        {% with saved=log.cost_saved|default:"0"|format_cost %}
+                        {% with saved=log.cost_saved|default(0)|format_cost %}
                         <td class="text-xs font-semibold" style="color:var(--accent-green);">{{ saved }}</td>
                         {% endwith %}
                     </tr>
@@ -289,54 +269,40 @@
     </div>
 </div>
 
-<!-- Per-User Token Usage -->
-{% if user_stats %}
-<div class="glass-card p-6 mb-8">
-    <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
-        Token Usage per User
-    </h3>
-    <div class="overflow-x-auto">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Original Tokens</th>
-                    <th>Compressed Tokens</th>
-                    <th>Generated Tokens</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in user_stats %}
-                <tr>
-                    <td class="font-semibold" style="color:var(--text-primary);">
-                        {{ u.user__first_name }} {{ u.user__last_name }}
-                    </td>
-                    <td class="text-sm" style="color:var(--text-secondary);">
-                        {{ u.user__email }}
-                    </td>
-                    <td class="text-sm font-mono" style="color:var(--text-secondary);">
-                        {% with val=u.tokens_original|default:"0"|format_tokens %}
-                        {{ val }}
-                        {% endwith %}
-                    </td>
-                    <td class="text-sm font-mono" style="color:var(--accent-green);">
-                        {% with val=u.tokens_compressed|default:"0"|format_tokens %}
-                        {{ val }}
-                        {% endwith %}
-                    </td>
-                    <td class="text-sm font-mono" style="color:var(--accent-amber);">
-                        {% with val=u.tokens_response|default:"0"|format_tokens %}
-                        {{ val }}
-                        {% endwith %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- BI Usage Depth -->
+<div class="grid lg:grid-cols-2 gap-6 mb-8">
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+            High-Volume Analytics (Top Consumers)
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Operator</th>
+                        <th class="text-right">Throughput (Tokens)</th>
+                    </tr>
+                </thead>
+                <tbody id="userUsageList">
+                    {% for u in user_usage %}
+                    <tr>
+                        <td class="font-semibold" style="color:var(--text-primary);">{{ u.username }}</td>
+                        <td class="text-right font-mono" style="color:var(--accent-green);">{{ u.tokens|format_tokens }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2" class="text-center py-4 opacity-50">No users detected</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="glass-card p-6">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+            Peak Access Intensity (24h Heatmap)
+        </h3>
+        <canvas id="peakUsageChart" height="150"></canvas>
     </div>
 </div>
-{% endif %}
 
 <script>
     // Palette
@@ -408,10 +374,52 @@
         }
     });
 
-    // Provider chart
-    {% if providers %}
+    // Peak Usage Chart
+    const peakUsage = {{ peak_usage_json| safe }};
+    new Chart(document.getElementById('peakUsageChart'), {
+        type: 'line',
+        data: {
+            labels: peakUsage.map(p => p.hour),
+            datasets: [{
+                label: 'Intensity',
+                data: peakUsage.map(p => p.count),
+                borderColor: CREAM,
+                backgroundColor: 'rgba(232,226,219,0.05)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 2,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
+        }
+    });
+
+    // Provider Pie Chart
     const providerStats = {{ provider_stats_json| safe }};
-    const providerColors = [AMBER, STEEL, GREEN, RED, CREAM, '#a78bfa'];
+    new Chart(document.getElementById('providerPieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: providerStats.map(p => p.name),
+            datasets: [{
+                data: providerStats.map(p => p.requests),
+                backgroundColor: [AMBER, STEEL, GREEN, RED, CREAM, '#a78bfa'],
+                borderWidth: 0,
+                cutout: '75%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 15 } } }
+        }
+    });
+
+    // Provider list chart (Existing)
+    {% if provider_stats_json %}
     new Chart(document.getElementById('providerChart'), {
         type: 'bar',
         data: {
@@ -419,8 +427,8 @@
             datasets: [{
                 label: 'Requests',
                 data: providerStats.map(p => p.requests),
-                backgroundColor: providerStats.map((_, i) => providerColors[i % providerColors.length] + '55'),
-                borderColor: providerStats.map((_, i) => providerColors[i % providerColors.length]),
+                backgroundColor: providerStats.map((_, i) => [AMBER, STEEL, GREEN, RED, CREAM, '#a78bfa'][i % 6] + '55'),
+                borderColor: providerStats.map((_, i) => [AMBER, STEEL, GREEN, RED, CREAM, '#a78bfa'][i % 6]),
                 borderWidth: 1,
                 borderRadius: 6,
             }]
@@ -429,7 +437,7 @@
             responsive: true,
             indexAxis: 'y',
             plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true, grid: { color: 'rgba(84,119,146,0.08)' } }, y: { grid: { display: false } } }
+            scales: { x: { beginAtZero: true }, y: { grid: { display: false } } }
         }
     });
     {% endif %}

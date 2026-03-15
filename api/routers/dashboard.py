@@ -175,10 +175,25 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
         daily_stats.insert(0, {"date": dt, "tokens_original": 0, "tokens_compressed": 0})
         
     provider_stats = []
-    stmt_prov = select(AIProvider.name, func.count(AuditLog.id)).join(AuditLog, AIProvider.id == AuditLog.ai_provider_id).where(AuditLog.organization_id == current_user.organization_id).group_by(AIProvider.name)
+    stmt_prov = select(AIProvider.name, func.count(AuditLog.id)).join(AuditLog, AIProvider.id == AuditLog.ai_provider_id).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by(AIProvider.name)
     res_prov = await db.execute(stmt_prov)
     for name, count in res_prov.all():
         provider_stats.append({"name": name, "requests": count})
+
+    # 4. User Usage Insights (BI)
+    user_usage = []
+    stmt_user = select(User.username, func.sum(AuditLog.tokens_original).label("tokens")).join(AuditLog, User.id == AuditLog.user_id).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by(User.username).order_by(desc("tokens")).limit(5)
+    res_user = await db.execute(stmt_user)
+    for uname, utokens in res_user.all():
+        user_usage.append({"username": uname, "tokens": utokens})
+
+    # 5. Peak Usage Periods (BI - Hour of day)
+    peak_usage = []
+    # Note: SQLite specific strftime for hour extraction
+    stmt_peak = select(func.strftime('%H', AuditLog.timestamp).label("hour"), func.count(AuditLog.id)).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by("hour").order_by("hour")
+    res_peak = await db.execute(stmt_peak)
+    for hour, count in res_peak.all():
+        peak_usage.append({"hour": f"{hour}:00", "count": count})
 
     metrics = {
         "total_requests": total_requests,
@@ -186,8 +201,9 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
         "total_tokens_compressed": tokens_compressed,
         "middle_ai_input": tokens_compressed,
         "middle_ai_output": tokens_response,
-        "financial_efficiency_pct": 85, 
+        "financial_efficiency_pct": round((cost_saved / (cost_saved + (tokens_original * 0.00001))) * 100, 1) if tokens_original > 0 else 0, 
         "total_cost_saved": cost_saved,
+        "roi_multiplier": round((float(cost_saved) / 0.001), 2) if cost_saved > 0 else 0, # Mock ROI baseline
         "compression_ratio": round((1 - (tokens_compressed / tokens_original)) * 100, 1) if tokens_original > 0 else 0,
         "cache_hit_rate": 0,
         "avg_latency": 0
@@ -200,7 +216,9 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
         "user": current_user,
         "days": days,
         "daily_stats_json": json.dumps(daily_stats),
-        "provider_stats_json": json.dumps(provider_stats)
+        "provider_stats_json": json.dumps(provider_stats),
+        "user_usage_json": json.dumps(user_usage),
+        "peak_usage_json": json.dumps(peak_usage)
     })
 
 

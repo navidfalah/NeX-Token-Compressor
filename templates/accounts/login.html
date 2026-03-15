@@ -37,10 +37,10 @@
                 <p class="text-sm" style="color:var(--text-muted);">Log in to your Firma-KI dashboard.</p>
             </div>
 
-            {% if form.errors %}
+            {% if error %}
             <div class="mb-6 p-4 rounded-xl"
                 style="background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25);">
-                <p class="text-sm" style="color:var(--accent-red);">Invalid username or password. Please try again.</p>
+                <p class="text-sm" style="color:var(--accent-red);">{{ error }}</p>
             </div>
             {% endif %}
 
@@ -48,11 +48,17 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Username</label>
-                    {{ form.username }}
+                    <input type="text" name="username" required
+                        class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="Organization username">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Password</label>
-                    {{ form.password }}
+                    <input type="password" name="password" required
+                        class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="••••••••">
                 </div>
                 <button type="submit" class="btn-gradient w-full py-3 mt-2 text-center"
                     style="color:var(--text-primary);">

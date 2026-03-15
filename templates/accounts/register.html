@@ -35,56 +35,66 @@
                 <p class="text-sm" style="color:var(--text-muted);">Start slashing AI costs in under 2 minutes.</p>
             </div>
 
-            {% if form.errors %}
+            {% if error %}
             <div class="mb-6 p-4 rounded-xl"
                 style="background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25);">
-                <ul class="text-sm space-y-1" style="color:var(--accent-red);">
-                    {% for field, errors in form.errors.items %}
-                    {% for error in errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-                    {% endfor %}
-                </ul>
+                <p class="text-sm" style="color:var(--accent-red);">{{ error }}</p>
             </div>
             {% endif %}
 
             <form method="post" class="space-y-4">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                 <div>
-                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Organization
-                        Name</label>
-                    {{ form.organization_name }}
+                    <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Organization Name</label>
+                    <input type="text" name="organization_name" required
+                        class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="e.g. Acme Corp">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">First
-                            Name</label>
-                        {{ form.first_name }}
+                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">First Name</label>
+                        <input type="text" name="first_name" required
+                            class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                            placeholder="Max">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Last
-                            Name</label>
-                        {{ form.last_name }}
+                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Last Name</label>
+                        <input type="text" name="last_name" required
+                            class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                            placeholder="Mustermann">
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Username</label>
-                    {{ form.username }}
+                    <input type="text" name="username" required
+                        class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="admin_acme">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Email</label>
-                    {{ form.email }}
+                    <input type="email" name="email" required
+                        class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                         placeholder="admin@acme.com">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium mb-2"
-                            style="color:var(--text-secondary);">Password</label>
-                        {{ form.password }}
+                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Password</label>
+                        <input type="password" name="password" required
+                            class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                             placeholder="••••••••">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Confirm
-                            Password</label>
-                        {{ form.password_confirm }}
+                        <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Confirm Password</label>
+                        <input type="password" name="password_confirm" required
+                            class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm"
+                            style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                             placeholder="••••••••">
                     </div>
                 </div>
                 <button type="submit" class="btn-gradient w-full py-3 mt-4 text-center"

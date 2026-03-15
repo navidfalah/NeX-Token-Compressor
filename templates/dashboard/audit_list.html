@@ -83,7 +83,7 @@
                         {% elif log.source == 'file_chat' %}
                         <span class="badge badge-success">File Chat</span>
                         {% else %}
-                        <span class="badge">{{ log.get_source_display }}</span>
+                        <span class="badge">{{ log.source.title() if log.source else "Unknown" }}</span>
                         {% endif %}
                     </td>
                     <td>

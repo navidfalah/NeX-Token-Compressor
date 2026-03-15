@@ -31,7 +31,7 @@
         {% elif log.source == 'file_chat' %}
         <span class="badge badge-success">File Chat</span>
         {% else %}
-        <span class="badge">{{ log.get_source_display }}</span>
+        <span class="badge">{{ log.source.title() if log.source else "Unknown" }}</span>
         {% endif %}
     </div>
 </div>
@@ -59,7 +59,7 @@
         <div class="metric-label" style="color:var(--accent-cyan);">S3 Human (Out)</div>
     </div>
     <div class="metric-card text-center">
-        <div class="metric-value text-lg gradient-text">{{ log.compression_ratio|default:"0" }}%</div>
+        <div class="metric-value text-lg gradient-text">{{ log.compression_ratio|default(0) }}%</div>
         <div class="metric-label">Efficiency</div>
     </div>
     <div class="metric-card text-center">
@@ -110,7 +110,7 @@
         </div>
         <div class="split-panel-body">
             <pre class="text-xs font-mono whitespace-pre-wrap break-all"
-                style="color:var(--text-secondary);">{{ log.deepseek_response|default:"(No Stage 2 output)" }}</pre>
+                style="color:var(--text-secondary);">{{ log.deepseek_response|default("(No Stage 2 output)") }}</pre>
         </div>
     </div>
 
@@ -124,7 +124,7 @@
         </div>
         <div class="split-panel-body">
             <pre class="text-xs font-mono whitespace-pre-wrap break-all"
-                style="color:var(--text-secondary);">{{ log.final_response|default:"(No Stage 3 output)" }}</pre>
+                style="color:var(--text-secondary);">{{ log.final_response|default("(No Stage 3 output)") }}</pre>
         </div>
     </div>
 </div>

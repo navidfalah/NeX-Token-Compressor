@@ -152,7 +152,7 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
     from services.gateway.compression.nex_code_compressor import ALGO_REGISTRY as CODE_ALGO
     from services.gateway.compression.nex_text_compressor import ALGO_REGISTRY as TEXT_ALGO
     
-    return templates.TemplateResponse("dashboard/index.html", {
+    return templates.TemplateResponse("dashboard/home.html", {
         "request": request,
         "active_page": "dashboard",
         "total_requests": total_requests,

@@ -91,9 +91,9 @@ async def chat_completions(
             for msg in messages:
                 content = msg["content"]
                 if has_code:
-                    result = NEXCodeCompressor.compress_input(content)
+                    result = NEXCodeCompressor.compress_input(content, extreme=True)
                 else:
-                    result = NEXTextCompressor.compress_input(content)
+                    result = NEXTextCompressor.compress_input(content, extreme=True)
                 compressed_messages.append({**msg, "content": result.compressed})
             compressed_text = " ".join(m["content"] for m in compressed_messages)
             nex_messages = compressed_messages

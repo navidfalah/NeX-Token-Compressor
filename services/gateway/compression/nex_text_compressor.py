@@ -231,13 +231,13 @@ class NEXNLBytecodeTranspiler:
         out = text
         # Intent extraction
         out = re.sub(r'(?i)\bthe\s+api\s+(?:returned|sent|threw)\s+(?:an?\s+)?error\b\s*(\d*)', r'[API:ERR(\1)]', out)
-        out = re.sub(r'(?i)\buser\s+(\w+)\s+(?:is\s+)?requesting\b', r'[USER:\1.REQ]', out)
+        out = re.sub(r'(?i)\buser\s+(?:is\s+)?requesting\b', r'[USER:REQ]', out)
         out = re.sub(r'(?i)\b(please|can\s+you)\s+(summarize|analyze|fix|check|write|create)\s*(?:the|this|my)?\s*(\w+)?\b', r'[CMD:\2(\3)]', out)
         # Structural conversion
-        out = re.sub(r'(?i)\bif\s+(.+?)\s+then\b', r'[IF:\1]', out)
-        out = re.sub(r'(?i)\b(because|due\s+to|since)\b', r'[CAU]', out)
-        out = re.sub(r'(?i)\b(therefore|consequently|as\s+a\s+result)\b', r'[RES]', out)
-        out = re.sub(r'(?i)\b(for\s+example|e\.g\.|such\s+as)\b', r'[EG:]', out)
+        out = re.sub(r'(?i)\bif\s+(.+?)\s+(?:then|yields|results in)\b', r'[IF:\1]', out)
+        out = re.sub(r'(?i)\b(because|due\s+to|since|as\s+a\s+result\s+of)\b', r'[CAU]', out)
+        out = re.sub(r'(?i)\b(therefore|consequently|as\s+a\s+result|so)\b', r'[RES]', out)
+        out = re.sub(r'(?i)\b(for\s+example|e\.g\.|such\s+as|including)\b', r'[EG:]', out)
         
         out = re.sub(r'\s+', ' ', out).strip()
         return out, max(0, _estimate_tokens(text) - _estimate_tokens(out))
@@ -269,6 +269,7 @@ class NEXTextCompressor:
     """
     Orchestrates NL compression pipelines at different intensity levels.
     """
+    # Standard production pipeline
     INPUT_PIPELINE = [
         ("QuotationCompress",   QuotationCompressor.apply),
         ("HedgeWordRemove",     HedgeWordRemover.apply),
@@ -276,7 +277,17 @@ class NEXTextCompressor:
         ("RedundancyEliminate", RedundancyEliminator.apply),
         ("SemanticFilter",      NEXSemanticDensityFilter.apply),
         ("TFIDFExtract",        TFIDFExtractor.apply),
-        ("ChunkSummarize",      ChunkSummarizer.apply),
+    ]
+
+    # Extreme pipeline for maximum density
+    INPUT_PIPELINE_EXTREME = [
+        ("CorporateDict",       CorporateDictionary.apply),
+        ("QuotationCompress",   QuotationCompressor.apply),
+        ("HedgeWordRemove",     HedgeWordRemover.apply),
+        ("StopWordPrune",       StopWordPruner.apply),
+        ("RedundancyEliminate", RedundancyEliminator.apply),
+        ("SemanticFilter",      NEXSemanticDensityFilter.apply),
+        ("NEXNLTranspile",      NEXNLBytecodeTranspiler.apply),
     ]
 
     OUTPUT_PIPELINE = [
@@ -285,8 +296,9 @@ class NEXTextCompressor:
     ]
 
     @classmethod
-    def compress_input(cls, text: str) -> CompressionResult:
-        return cls._run(text, cls.INPUT_PIPELINE, "input")
+    def compress_input(cls, text: str, extreme: bool = False) -> CompressionResult:
+        pipeline = cls.INPUT_PIPELINE_EXTREME if extreme else cls.INPUT_PIPELINE
+        return cls._run(text, pipeline, "input")
 
     @classmethod
     def compress_with_algo(cls, text: str, algo_key: str) -> CompressionResult:

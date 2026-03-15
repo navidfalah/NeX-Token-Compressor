@@ -24,9 +24,9 @@
     --border-input: rgba(96, 165, 250, 0.32);
 
     /* Typography — high contrast */
-    --text-primary:   #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-muted:     #64748b;
+    --text-primary:   #f8fafc; /* Gray 50 for max crispness */
+    --text-secondary: #e2e8f0; /* Gray 200 (was Gray 300/400) */
+    --text-muted:     #94a3b8; /* Gray 400 (was Gray 500) */
     --text-inverse:   #0f1117;
 
     /* Accents — vibrant, clearly distinct */

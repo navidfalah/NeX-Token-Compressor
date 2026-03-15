@@ -33,16 +33,6 @@
                     </button>
                 </div>
 
-                <div class="mt-6 p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Enterprise Mode</h4>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="enterprise-toggle" class="sr-only peer" onchange="toggleEnterprise()">
-                            <div class="w-8 h-4 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
-                        </label>
-                    </div>
-                    <p class="text-[9px]" style="color:var(--text-muted);">Enables aggressive cross-block deduplication and destructive formatting for maximum density.</p>
-                </div>
 
                 <div class="mt-8">
                     <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--accent-cyan);">Algorithm Level</h3>
@@ -110,6 +100,22 @@
                             <span id="output-stats" class="text-[9px] text-muted">0 chars</span>
                         </div>
                         <pre id="test-output" class="w-full flex-grow p-4 text-xs font-mono overflow-auto whitespace-pre-wrap text-emerald-400" style="background:rgba(0,0,0,0.2);">Waiting for execution...</pre>
+                    </div>
+                </div>
+
+                <!-- Token Statistics -->
+                <div class="grid grid-cols-3 gap-4 mt-8">
+                    <div class="p-3 rounded-xl bg-white/5 border border-glass">
+                        <div class="text-[9px] text-muted uppercase font-bold mb-1">Tokens Before</div>
+                        <div id="stat-before" class="text-sm font-bold">0</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-white/5 border border-glass">
+                        <div class="text-[9px] text-muted uppercase font-bold mb-1">Tokens After</div>
+                        <div id="stat-after" class="text-sm font-bold">0</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+                        <div class="text-[9px] text-indigo-300 uppercase font-bold mb-1">Total Savings</div>
+                        <div id="stat-savings" class="text-sm font-bold text-indigo-300">0%</div>
                     </div>
                 </div>
 
@@ -237,7 +243,6 @@ async function runTest() {
                 text: input,
                 algo: currentAlgo,
                 mode: currentMode,
-                enterprise: document.getElementById('enterprise-toggle').checked
             }),
             headers: {'Content-Type': 'application/json'}
         });
@@ -276,12 +281,6 @@ async function runTest() {
     }
 }
 
-function toggleEnterprise() {
-    if (document.getElementById('enterprise-toggle').checked) {
-        // Just visual feedback
-        console.log("Enterprise Mode Activated");
-    }
-}
 
 // Init
 window.onload = () => setMode('code');

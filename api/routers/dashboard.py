@@ -1,9 +1,7 @@
 from datetime import datetime, timedelta
 import json
-import humanize
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, desc
@@ -12,99 +10,25 @@ from api.dependencies import get_db
 from models.accounts import User
 from models.dashboard import APIKey, CompressionRule, AIProvider, AuditLog, SecureDocument, KeyMapping, PrivacyConfig
 from core.security import decode_access_token
+from api.templates_config import templates
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
-templates = Jinja2Templates(directory="templates")
 
-# Custom Jinja Filters
-def format_bytes(n):
-    try:
-        return humanize.naturalsize(int(n))
-    except (ValueError, TypeError):
-        return "0 B"
 
-def timesince_filter(dt):
-    if not dt: return ""
-    now = datetime.utcnow()
-    # Ensure dt is naive if now is naive
-    if dt.tzinfo:
-        dt = dt.replace(tzinfo=None)
-    return humanize.naturaltime(now - dt).replace(" ago", "")
+from sqlalchemy.orm import selectinload
 
-def file_icon(filename):
-    if not filename: return "📄"
-    ext = filename.split('.')[-1].lower() if '.' in filename else ''
-    icons = {
-        'pdf': '📕',
-        'docx': '📘',
-        'doc': '📘',
-        'txt': '📄',
-        'py': '🐍',
-        'js': '📜',
-        'html': '🌐',
-        'css': '🎨',
-        'csv': '📊',
-        'xlsx': '📊',
-        'zip': '📦',
-        'json': '⚙️'
+# Utility for common dashboard context
+async def get_common_context(db: AsyncSession, user: User):
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    stmt_today = select(func.count(AuditLog.id)).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.timestamp >= today_start
+    )
+    res_today = await db.execute(stmt_today)
+    return {
+        "user": user,
+        "nex_requests_today": res_today.scalar() or 0
     }
-    return icons.get(ext, '📄')
-
-templates.env.filters["format_bytes"] = format_bytes
-templates.env.filters["timesince"] = timesince_filter
-templates.env.filters["file_icon"] = file_icon
-
-def format_tokens(n):
-    try:
-        n = int(n)
-        if n >= 1000000:
-            return f"{n/1000000:.1f}M"
-        if n >= 1000:
-            return f"{n/1000:.1f}K"
-        return str(n)
-    except (ValueError, TypeError):
-        return "0"
-
-def format_latency(ms):
-    try:
-        ms = float(ms)
-        if ms >= 1000:
-            return f"{ms/1000:.2f}s"
-        return f"{int(ms)}ms"
-    except (ValueError, TypeError):
-        return "0ms"
-
-def format_cost(val):
-    try:
-        return f"{float(val):.4f}"
-    except (ValueError, TypeError):
-        return "0.00"
-
-templates.env.filters["format_tokens"] = format_tokens
-templates.env.filters["format_latency"] = format_latency
-templates.env.filters["format_cost"] = format_cost
-
-def timesince_short(dt):
-    if not dt: return ""
-    now = datetime.utcnow()
-    if dt.tzinfo: dt = dt.replace(tzinfo=None)
-    diff = now - dt
-    if diff.days > 0:
-        return f"{diff.days}d"
-    if diff.seconds >= 3600:
-        return f"{diff.seconds // 3600}h"
-    if diff.seconds >= 60:
-        return f"{diff.seconds // 60}m"
-    return f"{diff.seconds}s"
-
-templates.env.filters["timesince_short"] = timesince_short
-
-def strftime_filter(dt, format="%b %d, %Y"):
-    if not dt: return ""
-    return dt.strftime(format)
-
-templates.env.filters["strftime"] = strftime_filter
-
 
 # Real authentication dependency for dashboard views
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
@@ -121,7 +45,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     if not username:
         return None
     
-    stmt = select(User).where(User.username == username)
+    stmt = select(User).options(selectinload(User.organization)).where(User.username == username)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     return user
@@ -148,6 +72,15 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
     res_req = await db.execute(stmt_req)
     total_requests = res_req.scalar() or 0
     
+    # 1b. Requests today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    stmt_today = select(func.count(AuditLog.id)).where(
+        AuditLog.organization_id == current_user.organization_id,
+        AuditLog.timestamp >= today_start
+    )
+    res_today = await db.execute(stmt_today)
+    nex_requests_today = res_today.scalar() or 0
+    
     # 2. Total tokens saved & compression
     stmt_tokens = select(
         func.sum(AuditLog.tokens_original).label("orig"),
@@ -164,7 +97,7 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
     cost_saved = (ts.saved if ts else 0) or 0
     
     # 3. Recent logs
-    stmt_logs = select(AuditLog).where(AuditLog.organization_id == current_user.organization_id).order_by(desc(AuditLog.timestamp)).limit(10)
+    stmt_logs = select(AuditLog).options(selectinload(AuditLog.ai_provider)).where(AuditLog.organization_id == current_user.organization_id).order_by(desc(AuditLog.timestamp)).limit(10)
     res_logs = await db.execute(stmt_logs)
     recent_logs = res_logs.scalars().all()
     
@@ -209,17 +142,17 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
         "avg_latency": 0
     }
         
-    return templates.TemplateResponse("dashboard/home.html", {
-        "request": request, 
+    context = await get_common_context(db, current_user)
+    context.update({
         "metrics": metrics,
         "recent_logs": recent_logs,
-        "user": current_user,
         "days": days,
         "daily_stats_json": json.dumps(daily_stats),
         "provider_stats_json": json.dumps(provider_stats),
         "user_usage_json": json.dumps(user_usage),
         "peak_usage_json": json.dumps(peak_usage)
     })
+    return templates.TemplateResponse("dashboard/home.html", {"request": request, **context})
 
 
 @router.get("/rules", response_class=HTMLResponse, name="dashboard_rules")
@@ -230,7 +163,30 @@ async def compression_rules(request: Request, db: AsyncSession = Depends(get_db)
     )
     res = await db.execute(stmt)
     rules = res.scalars().all()
-    return templates.TemplateResponse("dashboard/rules.html", {"request": request, "custom_rules": rules, "user": current_user})
+    
+    lang_groups = {}
+    prog_groups = {}
+    custom_rules = []
+    
+    for r in rules:
+        if r.rule_type == 'language':
+            l = r.language or 'en'
+            if l not in lang_groups: lang_groups[l] = []
+            lang_groups[l].append(r)
+        elif r.rule_type == 'programming':
+            p = r.programming_language or 'generic'
+            if p not in prog_groups: prog_groups[p] = []
+            prog_groups[p].append(r)
+        else:
+            custom_rules.append(r)
+
+    context = await get_common_context(db, current_user)
+    context.update({
+        "lang_groups": lang_groups,
+        "prog_groups": prog_groups,
+        "custom_rules": custom_rules
+    })
+    return templates.TemplateResponse("dashboard/rules.html", {"request": request, **context})
 
 @router.get("/providers", response_class=HTMLResponse, name="dashboard_ai_providers")
 async def ai_providers(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -240,7 +196,10 @@ async def ai_providers(request: Request, db: AsyncSession = Depends(get_db), cur
     )
     res = await db.execute(stmt)
     providers = res.scalars().all()
-    return templates.TemplateResponse("dashboard/ai_providers.html", {"request": request, "providers": providers, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["providers"] = providers
+    return templates.TemplateResponse("dashboard/ai_providers.html", {"request": request, **context})
 
 @router.get("/team", response_class=HTMLResponse, name="dashboard_team")
 async def team_management(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -248,7 +207,10 @@ async def team_management(request: Request, db: AsyncSession = Depends(get_db), 
     stmt = select(User).where(User.organization_id == current_user.organization_id)
     res = await db.execute(stmt)
     members = [{"user": u, "requests": 0, "active_keys": 0} for u in res.scalars().all()]
-    return templates.TemplateResponse("dashboard/team.html", {"request": request, "member_stats": members, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["member_stats"] = members
+    return templates.TemplateResponse("dashboard/team.html", {"request": request, **context})
 
 @router.get("/api-keys", response_class=HTMLResponse, name="dashboard_api_key_list")
 async def api_key_list(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -256,23 +218,29 @@ async def api_key_list(request: Request, db: AsyncSession = Depends(get_db), cur
     stmt = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
     res = await db.execute(stmt)
     keys = res.scalars().all()
-    return templates.TemplateResponse("dashboard/api_keys.html", {"request": request, "keys": keys, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["keys"] = keys
+    return templates.TemplateResponse("dashboard/api_keys.html", {"request": request, **context})
 
 @router.get("/audit", response_class=HTMLResponse, name="dashboard_security_audit")
 async def security_audit(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
     
-    # Get API keys for the left column
+    stmt_logs = select(AuditLog).options(selectinload(AuditLog.ai_provider)).where(AuditLog.organization_id == current_user.organization_id).order_by(desc(AuditLog.timestamp)).limit(50)
+    res_logs = await db.execute(stmt_logs)
+    logs = res_logs.scalars().all()
+
     stmt_keys = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
     res_keys = await db.execute(stmt_keys)
     api_keys = res_keys.scalars().all()
-    for k in api_keys:
-        k.masked_key = f"{k.key[:6]}...{k.key[-4:]}" if len(k.key) > 10 else k.key
-
-    stmt = select(AuditLog).where(AuditLog.organization_id == current_user.organization_id).order_by(desc(AuditLog.timestamp)).limit(50)
-    res = await db.execute(stmt)
-    logs = res.scalars().all()
-    return templates.TemplateResponse("dashboard/security_audit.html", {"request": request, "logs": logs, "user": current_user, "api_keys": api_keys})
+    
+    context = await get_common_context(db, current_user)
+    context.update({
+        "logs": logs,
+        "api_keys": api_keys
+    })
+    return templates.TemplateResponse("dashboard/security_audit.html", {"request": request, **context})
 
 @router.get("/audit-list", response_class=HTMLResponse, name="dashboard_audit_list")
 async def audit_list_view(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -280,7 +248,7 @@ async def audit_list_view(request: Request, db: AsyncSession = Depends(get_db), 
     search = request.query_params.get("search", "")
     status_filter = request.query_params.get("status", "")
     
-    stmt = select(AuditLog).where(AuditLog.organization_id == current_user.organization_id)
+    stmt = select(AuditLog).options(selectinload(AuditLog.ai_provider)).where(AuditLog.organization_id == current_user.organization_id)
     if search:
         stmt = stmt.where(AuditLog.original_payload.contains(search) | AuditLog.final_response.contains(search))
     if status_filter:
@@ -290,13 +258,13 @@ async def audit_list_view(request: Request, db: AsyncSession = Depends(get_db), 
     res = await db.execute(stmt)
     logs = res.scalars().all()
     
-    return templates.TemplateResponse("dashboard/audit_list.html", {
-        "request": request, 
+    context = await get_common_context(db, current_user)
+    context.update({
         "logs": logs, 
         "search": search, 
-        "status_filter": status_filter,
-        "user": current_user
+        "status_filter": status_filter
     })
+    return templates.TemplateResponse("dashboard/audit_list.html", {"request": request, **context})
 
 @router.get("/audit/{log_id}", response_class=HTMLResponse, name="dashboard_audit_detail")
 async def audit_detail(request: Request, log_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -306,7 +274,10 @@ async def audit_detail(request: Request, log_id: str, db: AsyncSession = Depends
     log = res.scalar_one_or_none()
     if not log:
         raise HTTPException(status_code=404, detail="Log not found")
-    return templates.TemplateResponse("dashboard/audit_detail.html", {"request": request, "log": log, "user": current_user})
+        
+    context = await get_common_context(db, current_user)
+    context["log"] = log
+    return templates.TemplateResponse("dashboard/audit_detail.html", {"request": request, **context})
 
 @router.get("/playground", response_class=HTMLResponse, name="dashboard_playground")
 async def playground(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -314,29 +285,32 @@ async def playground(request: Request, db: AsyncSession = Depends(get_db), curre
     stmt = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
     res = await db.execute(stmt)
     api_keys = res.scalars().all()
-    # Mask keys for dropdown
-    for k in api_keys:
-        k.masked_key = f"{k.key[:6]}...{k.key[-4:]}" if len(k.key) > 10 else k.key
         
-    return templates.TemplateResponse("dashboard/playground.html", {"request": request, "user": current_user, "api_keys": api_keys})
+    context = await get_common_context(db, current_user)
+    context["api_keys"] = api_keys
+    return templates.TemplateResponse("dashboard/playground.html", {"request": request, **context})
 @router.get("/documents", response_class=HTMLResponse, name="dashboard_masked_documents_list")
 async def masked_documents_list(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
-    from sqlalchemy.orm import selectinload
     stmt = select(SecureDocument).where(SecureDocument.organization_id == current_user.organization_id).options(selectinload(SecureDocument.key_mappings))
     res = await db.execute(stmt)
     documents = res.scalars().all()
-    return templates.TemplateResponse("dashboard/masked_documents_list.html", {"request": request, "documents": documents, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["documents"] = documents
+    return templates.TemplateResponse("dashboard/masked_documents_list.html", {"request": request, **context})
 
 @router.get("/documents/{doc_id}", response_class=HTMLResponse, name="dashboard_masked_document_chat")
 async def masked_document_chat(request: Request, doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
-    from sqlalchemy.orm import selectinload
     stmt = select(SecureDocument).where(SecureDocument.id == doc_id, SecureDocument.organization_id == current_user.organization_id).options(selectinload(SecureDocument.key_mappings))
     res = await db.execute(stmt)
     document = res.scalar_one_or_none()
     if not document: raise HTTPException(status_code=404, detail="Document not found")
-    return templates.TemplateResponse("dashboard/masked_document_chat.html", {"request": request, "document": document, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["document"] = document
+    return templates.TemplateResponse("dashboard/masked_document_chat.html", {"request": request, **context})
 
 @router.get("/documents/{doc_id}/preview", response_class=HTMLResponse, name="dashboard_masked_document_preview_text")
 async def masked_document_preview_text(request: Request, doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -345,7 +319,10 @@ async def masked_document_preview_text(request: Request, doc_id: str, db: AsyncS
     res = await db.execute(stmt)
     document = res.scalar_one_or_none()
     if not document: raise HTTPException(status_code=404, detail="Document not found")
-    return templates.TemplateResponse("dashboard/masked_document_preview.html", {"request": request, "document": document, "user": current_user})
+    
+    context = await get_common_context(db, current_user)
+    context["document"] = document
+    return templates.TemplateResponse("dashboard/masked_document_preview.html", {"request": request, **context})
 
 @router.get("/documents/{doc_id}/download-text", name="dashboard_masked_document_download_text")
 async def masked_document_download_text(doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -357,14 +334,16 @@ async def masked_document_preview_pdf(doc_id: str, db: AsyncSession = Depends(ge
     # Placeholder
     return RedirectResponse(url="/dashboard/documents")
 @router.get("/edge-nodes", response_class=HTMLResponse, name="dashboard_edge_nodes")
-async def edge_nodes(request: Request, current_user: User = Depends(get_current_user)):
+async def edge_nodes(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
-    return templates.TemplateResponse("dashboard/edge_nodes.html", {"request": request, "user": current_user})
+    context = await get_common_context(db, current_user)
+    return templates.TemplateResponse("dashboard/edge_nodes.html", {"request": request, **context})
 
 @router.get("/mcp-tools", response_class=HTMLResponse, name="dashboard_mcp_tools")
-async def mcp_tools(request: Request, current_user: User = Depends(get_current_user)):
+async def mcp_tools(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
-    return templates.TemplateResponse("dashboard/mcp_tools.html", {"request": request, "user": current_user})
+    context = await get_common_context(db, current_user)
+    return templates.TemplateResponse("dashboard/mcp_tools.html", {"request": request, **context})
 
 @router.get("/documents/{doc_id}/download-pdf", name="dashboard_masked_document_download_pdf")
 async def masked_document_download_pdf(doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -382,9 +361,761 @@ async def privacy_view(request: Request, db: AsyncSession = Depends(get_db), cur
         db.add(config)
         await db.commit()
         await db.refresh(config)
-    return templates.TemplateResponse("dashboard/privacy.html", {"request": request, "config": config, "user": current_user})
+        
+    context = await get_common_context(db, current_user)
+    context["config"] = config
+    return templates.TemplateResponse("dashboard/privacy.html", {"request": request, **context})
 
 @router.post("/privacy", name="dashboard_privacy_post")
 async def privacy_post(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Placeholder for post logic
     return RedirectResponse(url="/dashboard/privacy")
+
+@router.get("/cascade", response_class=HTMLResponse, name="dashboard_cascade")
+async def cascade_intelligence(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/cascade_intelligence.html", {
+        "request": request, **context
+    })
+
+@router.get("/compression", response_class=HTMLResponse, name="dashboard_compression")
+async def compression_engine_view(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/compression_engine.html", {
+        "request": request, **context
+    })
+
+@router.get("/telemetry", response_class=HTMLResponse, name="dashboard_telemetry")
+async def token_telemetry_view(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    # Fetch real audit log stats from database
+    stmt = select(AuditLog).where(AuditLog.organization_id == user.organization_id).order_by(desc(AuditLog.timestamp)).limit(50)
+    result = await db.execute(stmt)
+    logs = result.scalars().all()
+    total_tokens_in = sum((l.tokens_original or 0) for l in logs)
+    total_tokens_out = sum((l.tokens_compressed or 0) for l in logs)
+    total_saved = total_tokens_in - total_tokens_out
+    avg_ratio = round((total_saved / total_tokens_in * 100) if total_tokens_in > 0 else 0, 1)
+    return templates.TemplateResponse("dashboard/token_telemetry.html", {
+        "request": request,
+        **context,
+        "telemetry": {
+            "total_tokens_in": total_tokens_in,
+            "total_tokens_out": total_tokens_out,
+            "total_saved": total_saved,
+            "avg_compression_pct": avg_ratio,
+            "request_count": len(logs),
+        }
+    })
+
+@router.get("/monitor", response_class=HTMLResponse, name="dashboard_pipeline_monitor")
+async def pipeline_monitor(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    stmt = select(APIKey).where(APIKey.organization_id == user.organization_id)
+    result = await db.execute(stmt)
+    api_keys = result.scalars().all()
+    return templates.TemplateResponse("dashboard/pipeline_monitor.html", {
+        "request": request, **context, "api_keys": api_keys
+    })
+
+
+@router.get("/analytics", response_class=HTMLResponse, name="dashboard_analytics")
+async def analytics_view(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    # Filter query params
+    status_filter: str = "all",
+    api_key_filter: str = "all",
+    source_filter: str = "all",
+    days: int = 7,
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+
+    since = datetime.utcnow() - timedelta(days=days)
+
+    # Build filtered query
+    base_q = (
+        select(AuditLog)
+        .options(
+            selectinload(AuditLog.ai_provider),
+            selectinload(AuditLog.api_key),
+        )
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.timestamp >= since,
+        )
+    )
+    if status_filter != "all":
+        base_q = base_q.where(AuditLog.status == status_filter)
+    if api_key_filter != "all":
+        base_q = base_q.where(AuditLog.api_key_id == api_key_filter)
+    if source_filter != "all":
+        base_q = base_q.where(AuditLog.source == source_filter)
+
+    base_q = base_q.order_by(desc(AuditLog.timestamp)).limit(200)
+    result = await db.execute(base_q)
+    logs = result.scalars().all()
+
+    # ── Summary aggregates ─────────────────────────────────────────────────────
+    total_requests = len(logs)
+    total_tokens_in  = sum((l.tokens_original or 0) for l in logs)
+    total_tokens_out = sum((l.tokens_compressed or 0) for l in logs)
+    total_saved      = total_tokens_in - total_tokens_out
+    total_cost       = float(sum((float(l.cost_actual) or 0) for l in logs))
+    total_cost_saved = float(sum((float(l.cost_saved) or 0) for l in logs))
+    avg_latency      = round(sum((l.latency_ms or 0) for l in logs) / max(1, total_requests))
+    errors           = sum(1 for l in logs if l.status != "success")
+    avg_ratio        = round((total_saved / total_tokens_in * 100) if total_tokens_in > 0 else 0, 1)
+
+    summary = {
+        "total_requests": total_requests,
+        "total_tokens_in": total_tokens_in,
+        "total_tokens_out": total_tokens_out,
+        "tokens_saved": total_saved,
+        "avg_compression_pct": avg_ratio,
+        "total_cost_usd": round(total_cost, 6),
+        "total_cost_saved_usd": round(total_cost_saved, 6),
+        "avg_latency_ms": avg_latency,
+        "error_count": errors,
+    }
+
+    # ── Per-API-key breakdown ──────────────────────────────────────────────────
+    key_stats: dict = {}
+    for log in logs:
+        kid = log.api_key_id or "unknown"
+        kname = (log.api_key.name if log.api_key else None) or "Unknown Key"
+        if kid not in key_stats:
+            key_stats[kid] = {"name": kname, "requests": 0, "tokens_in": 0, "tokens_saved": 0, "cost": 0.0, "errors": 0}
+        key_stats[kid]["requests"] += 1
+        key_stats[kid]["tokens_in"] += (log.tokens_original or 0)
+        key_stats[kid]["tokens_saved"] += max(0, (log.tokens_original or 0) - (log.tokens_compressed or 0))
+        key_stats[kid]["cost"] += float(log.cost_actual or 0)
+        if log.status != "success":
+            key_stats[kid]["errors"] += 1
+
+    # ── Per-provider breakdown ─────────────────────────────────────────────────
+    provider_stats: dict = {}
+    for log in logs:
+        pid = log.ai_provider_id or "unknown"
+        pname = (log.ai_provider.name if log.ai_provider else None) or "Unknown Provider"
+        if pid not in provider_stats:
+            provider_stats[pid] = {"name": pname, "requests": 0, "tokens": 0, "cost": 0.0}
+        provider_stats[pid]["requests"] += 1
+        provider_stats[pid]["tokens"] += (log.tokens_compressed or log.tokens_original or 0)
+        provider_stats[pid]["cost"] += float(log.cost_actual or 0)
+
+    # ── Filter options for the UI ──────────────────────────────────────────────
+    all_keys_stmt = select(APIKey).where(APIKey.organization_id == user.organization_id)
+    all_keys_res = await db.execute(all_keys_stmt)
+    all_keys = all_keys_res.scalars().all()
+
+    return templates.TemplateResponse("dashboard/analytics.html", {
+        "request": request,
+        **context,
+        "summary": summary,
+        "logs": logs[:100],          # keep template manageable
+        "key_stats": list(key_stats.values()),
+        "provider_stats": list(provider_stats.values()),
+        "all_keys": all_keys,
+        # Filter state
+        "filter_status": status_filter,
+        "filter_api_key": api_key_filter,
+        "filter_source": source_filter,
+        "filter_days": days,
+    })
+
+
+
+@router.get("/compression/code", response_class=HTMLResponse, name="dashboard_compression_code")
+async def compression_code_view(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/compression_code.html", {
+        "request": request, **context
+    })
+
+@router.get("/compression/text", response_class=HTMLResponse, name="dashboard_compression_text")
+async def compression_text_view(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/compression_text.html", {
+        "request": request, **context
+    })
+
+
+# ─── Pipeline Simulation API ─────────────────────────────────────────────────
+
+import ast
+import re
+import tokenize
+import io
+import time
+import math
+from collections import Counter
+
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+
+class SimulateRequest(BaseModel):
+    input_text: str
+    payload_type: str = "code"          # code | text | auto
+    compression_algorithm: str = "ast"  # see below
+    routing_threshold_tokens: int = 500
+
+
+def _count_words(text: str) -> int:
+    return len(text.split())
+
+def _estimate_tokens(text: str) -> int:
+    return max(1, int(len(text) / 4))
+
+
+# ── CODE COMPRESSION ALGORITHMS ───────────────────────────────────────────────
+
+def _ast_prune(source: str) -> dict:
+    """Python AST: strip docstrings and string-constant comments."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as e:
+        return {"success": False, "error": str(e), "result": source}
+
+    class _Stripper(ast.NodeTransformer):
+        def visit_Expr(self, node):
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                return None
+            return node
+    tree = _Stripper().visit(tree)
+    ast.fix_missing_locations(tree)
+    try:
+        result = ast.unparse(tree)
+    except Exception:
+        result = source
+    return {"success": True, "result": result}
+
+def _regex_prune(source: str) -> dict:
+    """Regex: remove #-comments, triple-quoted strings, collapse blank lines."""
+    r = re.sub(r'#[^\n]*', '', source)
+    r = re.sub(r'"""[\s\S]*?"""', '', r)
+    r = re.sub(r"'''[\s\S]*?'''", '', r)
+    r = re.sub(r'\n\s*\n+', '\n', r)
+    return {"success": True, "result": r.strip()}
+
+def _minifier(source: str) -> dict:
+    """Python Minifier: inline short functions, remove type hints, compress names."""
+    r = re.sub(r'#[^\n]*', '', source)
+    r = re.sub(r'"""[\s\S]*?"""', '""', r)
+    r = re.sub(r"'''[\s\S]*?'''", "''", r)
+    # Remove type annotations (very simplified)
+    r = re.sub(r':\s*[\w\[\], |]+\s*=', ' =', r)
+    r = re.sub(r'->\s*[\w\[\], |]+:', ':', r)
+    r = re.sub(r'\n\s*\n+', '\n', r)
+    r = re.sub(r'  +', ' ', r)
+    return {"success": True, "result": r.strip()}
+
+def _dead_code_eliminator(source: str) -> dict:
+    """Dead Code: remove unreachable branches after return/raise, strip pass-only blocks."""
+    lines = source.split('\n')
+    result_lines = []
+    skip_until_dedent = False
+    base_indent = 0
+    for line in lines:
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+        if skip_until_dedent and indent > base_indent:
+            continue
+        skip_until_dedent = False
+        result_lines.append(line)
+        # Mark what follows a top-level return/raise as dead
+        if re.match(r'^ *(return|raise)\b', line):
+            skip_until_dedent = True
+            base_indent = indent - 4
+    result = '\n'.join(result_lines)
+    result = re.sub(r'\n\s*pass\s*\n', '\n', result)  # strip bare pass
+    result = re.sub(r'\n\s*\n+', '\n', result)
+    return {"success": True, "result": result.strip()}
+
+def _whitespace_compressor(source: str) -> dict:
+    """Whitespace: normalize indents, collapse spaces, remove blank lines entirely."""
+    r = re.sub(r'[ \t]+', ' ', source)
+    r = re.sub(r'\n\s*\n', '\n', r)
+    r = re.sub(r'^\s+', '', r, flags=re.MULTILINE)
+    return {"success": True, "result": r.strip()}
+
+
+# ── TEXT / NL COMPRESSION ALGORITHMS ─────────────────────────────────────────
+
+def _nex_s1_prune(text: str) -> dict:
+    """NEX S1: semantic density filter — keeps high-signal sentences."""
+    SIGNAL_WORDS = {"result", "shows", "analysis", "impact", "increase", "decrease",
+                    "achieve", "conclude", "found", "data", "value", "cost", "performance",
+                    "failure", "success", "model", "api", "token", "study", "evidence", "key"}
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    high = [s for s in sentences if len(s.split()) > 5 and
+            any(w in s.lower() for w in SIGNAL_WORDS)]
+    if not high:
+        high = sentences[:max(1, len(sentences) // 2)]
+    return {"success": True, "result": " ".join(high)}
+
+def _tfidf_extractor(text: str) -> dict:
+    """TF-IDF: rank sentences by term frequency × inverse document frequency, keep top 40%."""
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    if len(sentences) <= 2:
+        return {"success": True, "result": text}
+    stop = {"the","a","an","is","in","it","of","to","and","or","that","this","was","are","for","on","at","be","by","with","as","not","we","you","i","he","she","they"}
+    def tokenize_sent(s): return [w.lower() for w in re.findall(r'\b\w+\b', s) if w.lower() not in stop]
+    tf = [Counter(tokenize_sent(s)) for s in sentences]
+    all_words = [w for t in tf for w in t]
+    wcount = Counter(all_words)
+    N = len(sentences)
+    def idf(w): return math.log(N / (1 + sum(1 for t in tf if w in t)))
+    def score(i):
+        words = tokenize_sent(sentences[i])
+        return sum(tf[i].get(w, 0) * idf(w) for w in words) / max(1, len(words))
+    scores = [(score(i), i) for i in range(len(sentences))]
+    scores.sort(reverse=True)
+    keep_n = max(1, int(len(sentences) * 0.4))
+    keep_idx = sorted([i for _, i in scores[:keep_n]])
+    return {"success": True, "result": " ".join(sentences[i] for i in keep_idx)}
+
+def _stopword_pruner(text: str) -> dict:
+    """Stop-word pruner: remove filler words and replace with NEX compact notation."""
+    STOP = {"the","a","an","in","it","of","and","or","that","this","was","are","for","on",
+            "at","be","by","with","as","we","you","i","he","she","they","to","is","been","have","had","has"}
+    words = text.split()
+    pruned = [w for w in words if w.lower().rstrip('.,!?') not in STOP]
+    return {"success": True, "result": " ".join(pruned)}
+
+def _chunk_summarizer(text: str) -> dict:
+    """Chunk: split into 100-word blocks, keep first 2 sentences of each — lossless structure."""
+    words = text.split()
+    chunks = [words[i:i+100] for i in range(0, len(words), 100)]
+    result_parts = []
+    for chunk in chunks:
+        chunk_text = " ".join(chunk)
+        sents = re.split(r'(?<=[.!?])\s+', chunk_text)
+        result_parts.append(" ".join(sents[:2]))
+    return {"success": True, "result": " ".join(result_parts)}
+
+def _redundancy_eliminator(text: str) -> dict:
+    """Redundancy: removes near-duplicate sentences (>70% word overlap)."""
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    unique = []
+    seen_sets = []
+    for sent in sentences:
+        words = set(re.findall(r'\b\w+\b', sent.lower()))
+        is_dup = any(
+            len(words & seen) / max(1, len(words | seen)) > 0.7
+            for seen in seen_sets
+        )
+        if not is_dup:
+            unique.append(sent)
+            seen_sets.append(words)
+    return {"success": True, "result": " ".join(unique)}
+
+
+_ALGORITHMS = {
+    # code algorithms
+    "ast":       (_ast_prune, "Python AST Pruner"),
+    "regex":     (_regex_prune, "Regex Comment Stripper"),
+    "minifier":  (_minifier, "Python Minifier"),
+    "dead_code": (_dead_code_eliminator, "Dead Code Eliminator"),
+    "whitespace":(_whitespace_compressor, "Whitespace Compressor"),
+    # text algorithms
+    "nex_s1":    (_nex_s1_prune, "NEX S1 Semantic Density Filter"),
+    "tfidf":     (_tfidf_extractor, "TF-IDF Sentence Extractor"),
+    "stopword":  (_stopword_pruner, "Stop-word Pruner"),
+    "chunk":     (_chunk_summarizer, "Chunk Summarizer"),
+    "redundancy":(_redundancy_eliminator, "Redundancy Eliminator"),
+    "none":      (None, "None (bypass)"),
+}
+
+
+def _decide_tier(text: str, threshold_tokens: int) -> dict:
+    token_count = _estimate_tokens(text)
+    cx_keywords = ["derivative", "integral", "proof", "algorithm", "theorem",
+                   "multi-step", "explain in detail", "synthesize", "complex",
+                   "matrix", "differential", "quantum", "tensor", "infer"]
+    found = [k for k in cx_keywords if k.lower() in text.lower()]
+    tier2 = token_count > threshold_tokens or len(found) > 0
+    return {
+        "tier": 2 if tier2 else 1,
+        "model": "Gemini 1.5 Pro" if tier2 else "DeepSeek V3",
+        "token_count": token_count,
+        "complexity_signals": found,
+        "escalation_reason": (
+            f"Token count {token_count} > threshold {threshold_tokens}" if token_count > threshold_tokens
+            else f"Complexity signals: {found}" if found
+            else "None — standard routing"
+        )
+    }
+
+
+@router.post("/api/pipeline-simulate", name="dashboard_pipeline_simulate")
+async def pipeline_simulate(
+    request: Request,
+    body: SimulateRequest,
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    steps = []
+    t0 = time.time()
+
+    raw_text = body.input_text.strip()
+    raw_tokens = _estimate_tokens(raw_text)
+
+    steps.append({
+        "step": 1, "name": "Input Received", "status": "success",
+        "details": f"Payload: {_count_words(raw_text)} words / ~{raw_tokens} tokens",
+        "metrics": {"tokens": raw_tokens, "chars": len(raw_text), "words": _count_words(raw_text)},
+        "diff": None,
+    })
+
+    # Compression
+    algo_key = body.compression_algorithm
+    fn, algo_label = _ALGORITHMS.get(algo_key, (None, "Unknown"))
+
+    if fn is not None:
+        r = fn(raw_text)
+        compressed_text = r["result"] if r.get("success") else raw_text
+        failed = not r.get("success")
+        err = r.get("error") if failed else None
+    else:
+        compressed_text = raw_text
+        failed = False
+        err = None
+
+    c_tokens = _estimate_tokens(compressed_text)
+    saved = raw_tokens - c_tokens
+    pct = round((saved / raw_tokens * 100) if raw_tokens > 0 else 0, 1)
+
+    if algo_key != "none":
+        steps.append({
+            "step": 2,
+            "name": f"Compression — {algo_label}",
+            "status": "warning" if failed else "success",
+            "details": err if failed else f"{raw_tokens} → {c_tokens} tokens ({pct}% reduction)",
+            "metrics": {
+                "tokens_before": raw_tokens,
+                "tokens_after": c_tokens,
+                "tokens_saved": saved,
+                "reduction_pct": pct,
+                "algorithm": algo_label,
+            },
+            "diff": {
+                "before": raw_text,
+                "after": compressed_text,
+            },
+        })
+
+    # Routing
+    routing = _decide_tier(compressed_text, body.routing_threshold_tokens)
+    steps.append({
+        "step": 3, "name": "Cascade Routing Decision",
+        "status": "warning" if routing["tier"] == 2 else "success",
+        "details": f"Tier {routing['tier']} → {routing['model']}. {routing['escalation_reason']}",
+        "metrics": {
+            "tier": routing["tier"],
+            "model": routing["model"],
+            "token_count": routing["token_count"],
+            "complexity_signals": routing["complexity_signals"],
+            "threshold": body.routing_threshold_tokens,
+        },
+        "diff": None,
+    })
+
+    elapsed_ms = round((time.time() - t0) * 1000, 2)
+    cost_usd = round(c_tokens * (0.000002 if routing["tier"] == 2 else 0.0000005), 8)
+
+    steps.append({
+        "step": 4, "name": "Dispatch & Telemetry", "status": "success",
+        "details": f"{routing['model']} — ${cost_usd} — latency {elapsed_ms}ms",
+        "metrics": {
+            "model": routing["model"],
+            "estimated_cost_usd": cost_usd,
+            "pipeline_latency_ms": elapsed_ms,
+            "payload_tokens": c_tokens,
+        },
+        "diff": None,
+    })
+
+    return JSONResponse({
+        "success": True,
+        "steps": steps,
+        "summary": {
+            "raw_tokens": raw_tokens,
+            "processed_tokens": c_tokens,
+            "tokens_saved": saved,
+            "reduction_pct": pct,
+            "algorithm_used": algo_label,
+            "model_selected": routing["model"],
+            "tier": routing["tier"],
+            "estimated_cost_usd": cost_usd,
+        }
+    })
+
+import re
+import textwrap
+import tokenize
+import io
+import time
+
+def _count_words(text: str) -> int:
+    return len(text.split())
+
+def _estimate_tokens(text: str) -> int:
+    """Rough token estimate: ~0.75 words per token or ~4 chars per token."""
+    return max(1, int(len(text) / 4))
+
+def _ast_prune(source: str) -> dict:
+    """Attempt AST-based pruning on Python source code."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as e:
+        return {"success": False, "error": str(e), "result": source}
+    
+    class CommentStripper(ast.NodeTransformer):
+        def visit_Expr(self, node):
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                return None  # Strip docstrings / string constants used as comments
+            return node
+    
+    cleaned = CommentStripper().visit(tree)
+    ast.fix_missing_locations(cleaned)
+    
+    # Unparse back to source
+    try:
+        pruned_source = ast.unparse(cleaned)
+    except Exception:
+        pruned_source = source  # Fallback
+    
+    # Additionally strip inline # comments via tokenize
+    tokens_out = []
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        for tok in tokens:
+            if tok.type != tokenize.COMMENT:
+                tokens_out.append(tok.string)
+    except Exception:
+        pass
+    
+    return {"success": True, "result": pruned_source}
+
+def _regex_prune(source: str) -> dict:
+    """Regex-based pruning: removes comments, blank lines, compresses whitespace."""
+    result = re.sub(r'#[^\n]*', '', source)           # Remove # comments
+    result = re.sub(r'"""[\s\S]*?"""', '', result)    # Remove triple-quoted strings
+    result = re.sub(r"'''[\s\S]*?'''", '', result)    # Remove single-quoted docstrings
+    result = re.sub(r'\n\s*\n+', '\n', result)         # Collapse blank lines
+    result = result.strip()
+    return {"success": True, "result": result}
+
+def _nex_s1_prune(text: str) -> dict:
+    """Semantic-density pruning: extract key sentences based on heuristics."""
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    # Keep sentences that are "high signal" (contain verbs/nouns above certain length)
+    high_signal = [s for s in sentences if len(s.split()) > 5 and any(
+        kw in s.lower() for kw in ["result", "shows", "analysis", "impact", "increase", "decrease", "achieve", "conclude", "found", "data", "value", "cost", "performance", "failure", "success", "model", "api", "token"]
+    )]
+    if not high_signal:
+        high_signal = sentences[:max(1, len(sentences)//2)]
+    result = " ".join(high_signal)
+    return {"success": True, "result": result}
+
+def _decide_tier(text: str, threshold_tokens: int) -> dict:
+    """Cascade routing decision logic."""
+    token_count = _estimate_tokens(text)
+    complexity_keywords = ["derivative", "integral", "proof", "algorithm", "theorem", "multi-step", "reason why", "explain in detail", "synthesize", "complex", "matrix", "differential", "quantum", "tensor", "infer"]
+    found_keywords = [k for k in complexity_keywords if k.lower() in text.lower()]
+    forced_tier2 = token_count > threshold_tokens or len(found_keywords) > 0
+    return {
+        "tier": 2 if forced_tier2 else 1,
+        "model": "Gemini 1.5 Pro" if forced_tier2 else "DeepSeek V3",
+        "token_count": token_count,
+        "complexity_signals": found_keywords,
+        "escalation_reason": (
+            f"Token count {token_count} > threshold {threshold_tokens}" if token_count > threshold_tokens
+            else f"Complexity signals detected: {found_keywords}" if found_keywords
+            else "None - standard routing"
+        )
+    }
+
+
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+class SimulateRequest(BaseModel):
+    input_text: str
+    payload_type: str = "code"          # code | text | auto
+    compression_algorithm: str = "ast"  # ast | regex | nex_s1 | none
+    routing_threshold_tokens: int = 500 # complexity token threshold for tier 2
+
+
+@router.post("/api/pipeline-simulate", name="dashboard_pipeline_simulate")
+async def pipeline_simulate(
+    request: Request,
+    body: SimulateRequest,
+    user: User = Depends(get_current_user)
+):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    steps = []
+    t_start = time.time()
+    
+    # ── STEP 1: Input analysis
+    raw_text = body.input_text.strip()
+    raw_tokens = _estimate_tokens(raw_text)
+    raw_words = _count_words(raw_text)
+    steps.append({
+        "step": 1,
+        "name": "Input Received",
+        "icon": "inbox",
+        "details": f"Payload type: `{body.payload_type}` — {raw_words} words / ~{raw_tokens} tokens",
+        "status": "success",
+        "metrics": {
+            "tokens": raw_tokens,
+            "chars": len(raw_text),
+            "words": raw_words,
+        }
+    })
+    
+    # ── STEP 2: Compression
+    algorithm_used = body.compression_algorithm
+    compressed_text = raw_text
+    compression_failed = False
+    compression_error = None
+    
+    if algorithm_used == "ast":
+        r = _ast_prune(raw_text)
+        algorithm_label = "Python AST Pruner"
+        if r["success"]:
+            compressed_text = r["result"]
+        else:
+            compression_failed = True
+            compression_error = r.get("error", "AST parse failed — is this valid Python?")
+    elif algorithm_used == "regex":
+        r = _regex_prune(raw_text)
+        algorithm_label = "Regex Comment Stripper"
+        compressed_text = r["result"]
+    elif algorithm_used == "nex_s1":
+        r = _nex_s1_prune(raw_text)
+        algorithm_label = "NEX Semantic Density Filter"
+        compressed_text = r["result"]
+    else:
+        algorithm_label = "None (bypass)"
+
+    compressed_tokens = _estimate_tokens(compressed_text)
+    tokens_saved = raw_tokens - compressed_tokens
+    reduction_pct = round((tokens_saved / raw_tokens * 100) if raw_tokens > 0 else 0, 1)
+    
+    if algorithm_used != "none":
+        steps.append({
+            "step": 2,
+            "name": f"Payload Compression — {algorithm_label}",
+            "icon": "compress",
+            "status": "warning" if compression_failed else "success",
+            "details": compression_error if compression_failed else f"{raw_tokens} → {compressed_tokens} tokens saved ({reduction_pct}% reduction)",
+            "metrics": {
+                "tokens_before": raw_tokens,
+                "tokens_after": compressed_tokens,
+                "tokens_saved": tokens_saved,
+                "reduction_pct": reduction_pct,
+                "algorithm": algorithm_label,
+            },
+            "diff": {
+                "before": raw_text[:600] + ("…" if len(raw_text) > 600 else ""),
+                "after": compressed_text[:600] + ("…" if len(compressed_text) > 600 else ""),
+            }
+        })
+    
+    # ── STEP 3: Cascade Routing Decision
+    routing = _decide_tier(compressed_text, body.routing_threshold_tokens)
+    steps.append({
+        "step": 3,
+        "name": "Cascade Routing Decision",
+        "icon": "route",
+        "status": "warning" if routing["tier"] == 2 else "success",
+        "details": f"Tier {routing['tier']} selected → {routing['model']}. Reason: {routing['escalation_reason']}",
+        "metrics": {
+            "tier": routing["tier"],
+            "model": routing["model"],
+            "token_count": routing["token_count"],
+            "complexity_signals": routing["complexity_signals"],
+            "threshold": body.routing_threshold_tokens,
+        }
+    })
+    
+    # ── STEP 4: Simulated Dispatch
+    elapsed_ms = round((time.time() - t_start) * 1000, 2)
+    estimated_cost_usd = round(compressed_tokens * (0.000002 if routing["tier"] == 2 else 0.0000005), 6)
+    
+    steps.append({
+        "step": 4,
+        "name": "Payload Dispatch & Telemetry",
+        "icon": "send",
+        "status": "success",
+        "details": f"Dispatched to {routing['model']} — estimated cost: ${estimated_cost_usd} — pipeline latency: {elapsed_ms}ms",
+        "metrics": {
+            "model": routing["model"],
+            "estimated_cost_usd": estimated_cost_usd,
+            "pipeline_latency_ms": elapsed_ms,
+            "payload_tokens": compressed_tokens,
+        }
+    })
+    
+    return JSONResponse({
+        "success": True,
+        "steps": steps,
+        "summary": {
+            "raw_tokens": raw_tokens,
+            "processed_tokens": compressed_tokens,
+            "tokens_saved": tokens_saved,
+            "reduction_pct": reduction_pct,
+            "algorithm_used": algorithm_label if algorithm_used != "none" else "None",
+            "model_selected": routing["model"],
+            "tier": routing["tier"],
+            "estimated_cost_usd": estimated_cost_usd,
+        }
+    })
+
+

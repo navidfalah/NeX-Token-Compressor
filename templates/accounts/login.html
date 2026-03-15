@@ -45,7 +45,7 @@
             {% endif %}
 
             <form method="post" class="space-y-5">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Username</label>
                     <input type="text" name="username" required

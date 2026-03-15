@@ -1,0 +1,150 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Token Telemetry | Firma-KI{% endblock %}
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+            Token Telemetry
+        </h1>
+        <p style="color:var(--text-secondary);">Live metrics from your organization's gateway usage. All figures are computed from real audit log data.</p>
+    </div>
+
+    <!-- Real Stats from DB -->
+    <div class="grid md:grid-cols-4 gap-6 mb-10">
+        <div class="glass-card p-6" style="border-bottom:3px solid var(--accent-cyan);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--text-muted);">Requests Tracked</div>
+            {% if telemetry.request_count > 0 %}
+            <div class="text-3xl font-black" style="color:var(--text-primary);">{{ telemetry.request_count }}</div>
+            {% else %}
+            <div class="text-lg font-medium" style="color:var(--text-muted);">No activity yet</div>
+            {% endif %}
+        </div>
+        <div class="glass-card p-6" style="border-bottom:3px solid var(--accent-amber);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--text-muted);">Total Tokens In</div>
+            {% if telemetry.total_tokens_in > 0 %}
+            <div class="text-3xl font-black" style="color:var(--text-primary);">{{ telemetry.total_tokens_in | format_tokens }}</div>
+            {% else %}
+            <div class="text-lg font-medium" style="color:var(--text-muted);">—</div>
+            {% endif %}
+        </div>
+        <div class="glass-card p-6" style="border-bottom:3px solid var(--accent-green);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--text-muted);">Tokens Saved (Compression)</div>
+            {% if telemetry.total_saved > 0 %}
+            <div class="text-3xl font-black" style="color:var(--accent-green);">{{ telemetry.total_saved | format_tokens }}</div>
+            {% else %}
+            <div class="text-lg font-medium" style="color:var(--text-muted);">—</div>
+            {% endif %}
+        </div>
+        <div class="glass-card p-6" style="border-bottom:3px solid rgba(99,102,241,0.6);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--text-muted);">Avg. Compression</div>
+            {% if telemetry.avg_compression_pct > 0 %}
+            <div class="text-3xl font-black" style="color:var(--text-primary);">{{ telemetry.avg_compression_pct }}%</div>
+            {% else %}
+            <div class="text-lg font-medium" style="color:var(--text-muted);">—</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Live Simulation Area -->
+    <div class="glass-card p-8">
+        <h3 class="text-xl font-bold mb-2" style="color:var(--text-primary);">Token Counter — Live Estimator</h3>
+        <p class="text-sm mb-6" style="color:var(--text-secondary);">Paste any payload to get an immediate pre-flight token estimate and cost projection before dispatching it to the API.</p>
+        <div class="grid lg:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Compression Algorithm</label>
+                    <select id="tel-algo" class="w-full px-4 py-3 rounded-xl fi-input" style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                        <option value="ast">Python AST Pruner</option>
+                        <option value="regex">Regex Stripper</option>
+                        <option value="nex_s1">NEX S1 Semantic Filter</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Tier 2 Token Threshold</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" id="tel-threshold" min="50" max="2000" value="500" class="flex-1 accent-indigo-500">
+                        <span id="tel-threshold-val" class="text-sm font-mono w-20 text-right" style="color:var(--text-primary);">500 T</span>
+                    </div>
+                </div>
+                <textarea id="tel-input" rows="8" class="w-full px-4 py-3 rounded-xl fi-input font-mono text-xs resize-none"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Enter payload to estimate token count and cost..."></textarea>
+                <button onclick="runTelemetryEstimate()" class="btn-gradient w-full py-3 font-bold">
+                    Estimate Tokens & Cost
+                </button>
+            </div>
+            <div id="tel-wait" class="flex items-center justify-center text-center p-8 rounded-2xl" style="background:rgba(255,255,255,0.02); border:1px dashed var(--border-glass);">
+                <p class="text-sm" style="color:var(--text-muted);">Submit a payload to see token analysis and cost estimate.</p>
+            </div>
+            <div id="tel-result" class="hidden space-y-4">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('tel-threshold').oninput = e => document.getElementById('tel-threshold-val').textContent = e.target.value + ' T';
+
+async function runTelemetryEstimate() {
+    const input = document.getElementById('tel-input').value.trim();
+    if (!input) return;
+
+    document.getElementById('tel-wait').classList.add('hidden');
+    document.getElementById('tel-result').classList.remove('hidden');
+    document.getElementById('tel-result').innerHTML = '<p class="text-xs" style="color:var(--text-muted);">Calculating...</p>';
+
+    try {
+        const res = await fetch('/dashboard/api/pipeline-simulate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                input_text: input,
+                payload_type: 'auto',
+                compression_algorithm: document.getElementById('tel-algo').value,
+                routing_threshold_tokens: parseInt(document.getElementById('tel-threshold').value)
+            })
+        });
+        const data = await res.json();
+        const s = data.summary;
+        const routing = data.steps.find(st => st.step === 3)?.metrics;
+
+        document.getElementById('tel-result').innerHTML = `
+            <div class="p-5 rounded-2xl border text-center" style="border-color:rgba(99,102,241,0.3); background:rgba(99,102,241,0.05);">
+                <div class="text-xs uppercase tracking-widest mb-1" style="color:var(--text-muted);">Selected Endpoint</div>
+                <div class="text-2xl font-black mb-0.5" style="color:var(--text-primary);">${s.model_selected}</div>
+                <div class="text-xs" style="color:var(--text-muted);">Tier ${s.tier}</div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="p-4 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Raw Tokens</div>
+                    <div class="text-2xl font-bold" style="color:var(--text-primary);">${s.raw_tokens}</div>
+                </div>
+                <div class="p-4 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Processed Tokens</div>
+                    <div class="text-2xl font-bold" style="color:var(--accent-green);">${s.processed_tokens}</div>
+                </div>
+                <div class="p-4 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Tokens Saved</div>
+                    <div class="text-2xl font-bold" style="color:var(--accent-cyan);">${s.tokens_saved} <span class="text-xs">(${s.reduction_pct}%)</span></div>
+                </div>
+                <div class="p-4 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Est. API Cost</div>
+                    <div class="text-2xl font-bold" style="color:var(--text-primary);">$${s.estimated_cost_usd}</div>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5">
+                <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Algorithm Used</div>
+                <div class="text-sm font-mono" style="color:var(--text-primary);">${s.algorithm_used}</div>
+            </div>
+        `;
+    } catch(e) {
+        document.getElementById('tel-result').innerHTML = `<p class="text-xs" style="color:var(--accent-red);">Error: ${e.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

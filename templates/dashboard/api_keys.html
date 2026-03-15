@@ -104,13 +104,13 @@
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Linked Provider
                 </div>
-                <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ key.default_provider.name if key.default_provider else "Any provider" }}</div>
+                <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ key.linked_provider_id[:8]~"…" if key.linked_provider_id else "Any provider" }}</div>
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Rate Limit</div>
                 <div class="text-sm font-semibold" style="color:var(--text-primary);">
-                    {% if key.requests_per_minute %}
-                    {{ key.requests_per_minute }} <span class="font-normal"
+                    {% if key.rate_limit and key.rate_limit > 0 %}
+                    {{ key.rate_limit }} <span class="font-normal"
                         style="color:var(--text-secondary);">req/min</span>
                     {% else %}
                     Unlimited
@@ -119,11 +119,11 @@
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Created</div>
-                <div class="text-sm" style="color:var(--text-secondary);">{{ key.created_at|strftime("%b %d, %Y") }}</div>
+                <div class="text-sm" style="color:var(--text-secondary);">{{ key.created_at.strftime("%b %d, %Y") if key.created_at else "—" }}</div>
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Last Used</div>
-                <div class="text-sm" style="color:var(--text-secondary);">{{ key.last_used_at|timesince_short if key.last_used_at else "Never" }}</div>
+                <div class="text-sm" style="color:var(--text-secondary);">{{ key.last_used_at.strftime("%b %d") if key.last_used_at else "Never" }}</div>
             </div>
         </div>
 
@@ -135,11 +135,7 @@
             <span class="badge badge-revoked">No Compression</span>
             {% endif %}
 
-            {% if key.enable_pii_masking %}
-            <span class="badge badge-active">PII Masking</span>
-            {% else %}
-            <span class="badge badge-revoked">No PII Data</span>
-            {% endif %}
+            <span class="badge badge-active">Daily Limit: {{ key.daily_token_limit if key.daily_token_limit else "Unlimited" }}</span>
 
             {% if key.enable_caching %}
             <span class="badge badge-active">Caching Semantic</span>

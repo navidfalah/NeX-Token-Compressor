@@ -17,7 +17,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
-templates = Jinja2Templates(directory="templates")
+from api.templates_config import templates
 
 app.include_router(gateway.router)
 app.include_router(dashboard.router)

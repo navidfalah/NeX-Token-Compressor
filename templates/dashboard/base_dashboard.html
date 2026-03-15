@@ -24,10 +24,11 @@
     </div>
 
     <!-- Nav Links -->
-    <nav class="py-4">
+    <nav class="py-4 overflow-y-auto" style="height: calc(100% - 160px);">
+        <!-- Group 1: Insights & Analytics -->
         <div class="px-5 mb-3">
-            <span class="text-xs font-semibold uppercase tracking-widest"
-                style="color:rgba(84,119,146,0.7);">Analytics</span>
+            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
+                style="color:var(--text-muted);">Insights</span>
         </div>
         <a href="{{ url_for('dashboard_home') }}"
             class="sidebar-link {% if request.url.path == '/dashboard/' %}active{% endif %}">
@@ -35,13 +36,62 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            Overview
+            Executive Overview
+        </a>
+        <a href="{{ url_for('dashboard_telemetry') }}"
+            class="sidebar-link {% if '/telemetry' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            Token Telemetry
+        </a>
+        <a href="{{ url_for('dashboard_analytics') }}"
+            class="sidebar-link {% if '/analytics' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            API Analytics
+        </a>
+        <a href="{{ url_for('dashboard_security_audit') }}"
+            class="sidebar-link {% if '/audit' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Security & Data Audit
         </a>
 
+        <!-- Group 2: AI Gateway -->
         <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest"
-                style="color:rgba(84,119,146,0.7);">Configuration</span>
+            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
+                style="color:var(--text-muted);">AI Gateway</span>
         </div>
+        <a href="{{ url_for('dashboard_cascade') }}"
+            class="sidebar-link {% if '/cascade' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Cascade Routing
+        </a>
+        <a href="{{ url_for('dashboard_compression_code') }}"
+            class="sidebar-link {% if '/compression/code' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            Code Compression
+        </a>
+        <a href="{{ url_for('dashboard_compression_text') }}"
+            class="sidebar-link {% if '/compression/text' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+            </svg>
+            Text Compression
+        </a>
         <a href="{{ url_for('dashboard_ai_providers') }}"
             class="sidebar-link {% if 'providers' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,75 +108,58 @@
             </svg>
             API Keys
         </a>
-        <a href="{{ url_for('dashboard_rules') }}"
-            class="sidebar-link {% if 'rules' in request.url.path %}active{% endif %}">
+        <a href="{{ url_for('dashboard_pipeline_monitor') }}"
+            class="sidebar-link {% if '/monitor' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            Compression Rules
+            Pipeline Monitor
         </a>
-
-        <a href="{{ url_for('dashboard_security_audit') }}"
-            class="sidebar-link {% if 'audit' in request.url.path %}active{% endif %}">
+        <a href="{{ url_for('dashboard_playground') }}"
+            class="sidebar-link {% if 'playground' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                </path>
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Security & Data Audit
+            Test Playground
         </a>
 
+        <!-- Group 3: Data Privacy -->
         <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest"
-                style="color:rgba(84,119,146,0.7);">Tools</span>
+            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
+                style="color:var(--text-muted);">Privacy</span>
         </div>
-
-        <a href="#"
-            class="sidebar-link">
+        <a href="{{ url_for('dashboard_privacy') }}"
+            class="sidebar-link {% if '/privacy' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            MCP Tools
+            Privacy Hub
         </a>
-        <a href="#"
-            class="sidebar-link">
+        <a href="{{ url_for('dashboard_masked_documents_list') }}"
+            class="sidebar-link {% if '/documents' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Edge Nodes
+            Masked Documents
         </a>
 
+        <!-- Group 4: Administrative -->
         <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest"
-                style="color:rgba(84,119,146,0.7);">Monitoring</span>
+            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
+                style="color:var(--text-muted);">Admin</span>
         </div>
-        <a href="{{ url_for('dashboard_security_audit') }}"
-            class="sidebar-link"
-            style="position:relative;">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Audit Logs
-            {% if nex_requests_today > 0 %}
-            <span
-                style="margin-left:auto; background:rgba(34,197,94,0.2); color:#4ade80; border:1px solid rgba(34,197,94,0.3); font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; line-height:1.6;">
-                {{ nex_requests_today }}
-            </span>
-            {% endif %}
-        </a>
         <a href="{{ url_for('dashboard_team') }}"
             class="sidebar-link {% if 'team' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            Team &amp; Access
+            Team & Access
         </a>
     </nav>
 

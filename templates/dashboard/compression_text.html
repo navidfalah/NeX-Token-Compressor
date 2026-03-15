@@ -1,0 +1,250 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Text Compression | Firma-KI{% endblock %}
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            NEX Natural Language Compression
+        </h1>
+        <p class="text-sm" style="color:var(--text-secondary);">Semantic compression for human text. <strong style="color:var(--accent-cyan);">Input</strong> shrinks prompts before sending to AI — <strong style="color:var(--accent-amber);">Output</strong> strips AI response preambles and caveats before forwarding.</p>
+    </div>
+
+    <!-- Side Tabs -->
+    <div class="flex gap-1 p-1 rounded-xl mb-8 inline-flex" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);">
+        <button id="tab-input" onclick="switchTab('input')" class="px-5 py-2 rounded-lg text-sm font-bold transition-all" style="background:rgba(99,102,241,0.2); color:var(--accent-cyan);">← Input Side</button>
+        <button id="tab-output" onclick="switchTab('output')" class="px-5 py-2 rounded-lg text-sm font-bold transition-all" style="color:var(--text-muted);">Output Side →</button>
+    </div>
+
+    <!-- INPUT SIDE -->
+    <div id="panel-input">
+        <div class="glass-card p-5 mb-6">
+            <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:var(--accent-cyan);">INPUT SIDE — Compress Before Sending to AI</div>
+            <p class="text-xs mb-4" style="color:var(--text-muted);">Goal: maximum token reduction while keeping 95%+ of actionable information. Only the semantic content matters — filler, redundancy, and hedges are noise.</p>
+            <div class="grid md:grid-cols-3 lg:grid-cols-5 gap-3" id="input-algo-btns">
+                <button onclick="selectAlgo('input','nex_s1',this)" class="algo-btn input-active p-3 rounded-xl border text-left" style="border-color:rgba(99,102,241,0.4); background:rgba(99,102,241,0.08);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">NEX S1</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Signal-keyword density filter</div>
+                </button>
+                <button onclick="selectAlgo('input','tfidf',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">TF-IDF Extract</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Top 40% by term importance</div>
+                </button>
+                <button onclick="selectAlgo('input','stopword',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Stop-word Prune</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Remove grammatical fillers</div>
+                </button>
+                <button onclick="selectAlgo('input','redundancy',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Redundancy Eliminate</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Drop >70% Jaccard overlaps</div>
+                </button>
+                <button onclick="selectAlgo('input','chunk',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Chunk Summarize</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">First 2 sentences per 150-word block</div>
+                </button>
+            </div>
+            <div class="mt-4 grid md:grid-cols-3 lg:grid-cols-5 gap-3 text-[9px]" style="color:var(--text-muted);">
+                <div><strong style="color:var(--accent-cyan);">NEX S1:</strong> Keeps sentences with domain keywords (api, cost, result, fail…). Fastest algorithm. Best for technical text.</div>
+                <div><strong style="color:var(--accent-cyan);">TF-IDF:</strong> Statistical importance ranking. Best for long documents and research text.</div>
+                <div><strong style="color:var(--accent-cyan);">Stop-word:</strong> Word-level filler removal. Very fast, predictable. Good for short queries.</div>
+                <div><strong style="color:var(--accent-cyan);">Redundancy:</strong> Jaccard similarity dedup. Best when the user repeats themselves.</div>
+                <div><strong style="color:var(--accent-cyan);">Chunk:</strong> Structure-preserving truncation. Best for very long documents (&gt;500 words).</div>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            <div class="glass-card p-6 flex flex-col gap-4">
+                <label class="text-xs font-bold uppercase tracking-widest" style="color:var(--accent-cyan);">Text Input (before AI)</label>
+                <textarea id="input-text" rows="18" class="w-full px-4 py-3 rounded-xl fi-input text-sm resize-none leading-relaxed"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Paste any natural language text: meeting notes, long prompts, research excerpts, legal paragraphs…&#10;&#10;The more verbose and repetitive, the better it compresses."></textarea>
+                <button onclick="runSide('input')" class="btn-gradient w-full py-3 font-bold flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7"/></svg>
+                    Compress for AI Input
+                </button>
+            </div>
+            <div class="glass-card flex flex-col">
+                <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
+                    <span class="text-xs font-bold uppercase tracking-widest" style="color:var(--text-muted);">Compressed Output</span>
+                    <span id="input-badge" class="text-xs font-bold px-2 py-1 rounded bg-white/5" style="color:var(--text-muted);">—</span>
+                </div>
+                <div id="input-wait" class="flex-1 flex items-center justify-center p-8 text-center">
+                    <p class="text-sm" style="color:var(--text-muted);">Compress text to see token savings before AI dispatch.</p>
+                </div>
+                <div id="input-result" class="hidden flex-1 flex flex-col p-5 gap-4 overflow-y-auto">
+                    <div id="input-metrics" class="grid grid-cols-3 gap-2"></div>
+                    <div>
+                        <div class="text-[9px] font-bold uppercase tracking-widest mb-1.5 px-1" style="color:var(--accent-green);">Compressed Text</div>
+                        <div id="input-after-inline" class="max-h-36 overflow-y-auto p-3 rounded-xl text-sm leading-relaxed" style="background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.15); color:var(--text-secondary);"></div>
+                    </div>
+                    <div>
+                        <button onclick="toggleDiff('input')" class="text-xs font-bold flex items-center gap-2 mb-2 opacity-60 hover:opacity-100" style="color:var(--text-muted);">
+                            <svg id="input-chevron" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            Show Original
+                        </button>
+                        <div id="input-diff" class="hidden">
+                            <div class="text-[9px] font-bold uppercase tracking-widest mb-1" style="color:#f87171;">ORIGINAL</div>
+                            <div id="input-before" class="max-h-44 overflow-y-auto p-3 rounded-xl text-sm leading-relaxed" style="background:rgba(248,113,113,0.05); border:1px solid rgba(248,113,113,0.15); color:var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OUTPUT SIDE -->
+    <div id="panel-output" class="hidden">
+        <div class="glass-card p-5 mb-6">
+            <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:var(--accent-amber);">OUTPUT SIDE — Clean AI Response</div>
+            <p class="text-xs mb-4" style="color:var(--text-muted);">Goal: strip AI boilerplate — preambles, caveats, disclaimers, closing pleasantries — before forwarding the response to your application. Only the answer content matters.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-3" id="output-algo-btns">
+                <button onclick="selectAlgo('output','nex_s1',this)" class="algo-btn output-active p-3 rounded-xl border text-left" style="border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.06);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Preamble Strip</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">"Of course! Here's…" removed</div>
+                </button>
+                <button onclick="selectAlgo('output','stopword',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Caveat Reduce</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Remove "Please note…" disclaimers</div>
+                </button>
+                <button onclick="selectAlgo('output','redundancy',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Qualifier Normalize</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">"in order to" → "to" etc.</div>
+                </button>
+                <button onclick="selectAlgo('output','tfidf',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
+                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Tail Strip</div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">"I hope this helps!" removed</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            <div class="glass-card p-6 flex flex-col gap-4">
+                <label class="text-xs font-bold uppercase tracking-widest" style="color:var(--accent-amber);">AI Response Text (paste here)</label>
+                <textarea id="output-text" rows="18" class="w-full px-4 py-3 rounded-xl fi-input text-sm resize-none leading-relaxed"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Paste the raw AI response here…&#10;&#10;Example:&#10;Of course! I'd be happy to help. Here's what you need to know:&#10;&#10;The API gateway routes requests based on complexity. Please note that results may vary. Let me know if you have more questions!"></textarea>
+                <button onclick="runSide('output')" style="background:linear-gradient(135deg,rgba(251,191,36,0.3),rgba(245,158,11,0.4)); border:1px solid rgba(251,191,36,0.3);" class="w-full py-3 font-bold flex items-center justify-center gap-2 rounded-xl text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 11l7 7 7-7"/></svg>
+                    Strip AI Boilerplate
+                </button>
+            </div>
+            <div class="glass-card flex flex-col">
+                <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
+                    <span class="text-xs font-bold uppercase tracking-widest" style="color:var(--text-muted);">Cleaned Response</span>
+                    <span id="output-badge" class="text-xs font-bold px-2 py-1 rounded bg-white/5" style="color:var(--text-muted);">—</span>
+                </div>
+                <div id="output-wait" class="flex-1 flex items-center justify-center p-8 text-center">
+                    <p class="text-sm" style="color:var(--text-muted);">Paste an AI response and clean it of boilerplate.</p>
+                </div>
+                <div id="output-result" class="hidden flex-1 flex flex-col p-5 gap-4 overflow-y-auto">
+                    <div id="output-metrics" class="grid grid-cols-3 gap-2"></div>
+                    <div>
+                        <div class="text-[9px] font-bold uppercase tracking-widest mb-1.5 px-1" style="color:var(--accent-green);">Cleaned Text</div>
+                        <div id="output-after-inline" class="max-h-36 overflow-y-auto p-3 rounded-xl text-sm leading-relaxed" style="background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.15); color:var(--text-secondary);"></div>
+                    </div>
+                    <div>
+                        <button onclick="toggleDiff('output')" class="text-xs font-bold flex items-center gap-2 mb-2 opacity-60 hover:opacity-100" style="color:var(--text-muted);">
+                            <svg id="output-chevron" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            Show Original
+                        </button>
+                        <div id="output-diff" class="hidden">
+                            <div class="text-[9px] font-bold uppercase tracking-widest mb-1" style="color:#f87171;">ORIGINAL</div>
+                            <div id="output-before" class="max-h-44 overflow-y-auto p-3 rounded-xl text-sm leading-relaxed" style="background:rgba(248,113,113,0.05); border:1px solid rgba(248,113,113,0.15); color:var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.algo-btn { cursor:pointer; transition:all 0.15s; border-color:var(--border-glass); }
+.input-active  { background:rgba(99,102,241,0.12) !important; border-color:rgba(99,102,241,0.5) !important; }
+.output-active { background:rgba(251,191,36,0.08) !important; border-color:rgba(251,191,36,0.5) !important; }
+</style>
+
+<script>
+let selectedInputAlgo  = 'nex_s1';
+let selectedOutputAlgo = 'nex_s1';
+
+function switchTab(side) {
+    document.getElementById('panel-input').classList.toggle('hidden', side !== 'input');
+    document.getElementById('panel-output').classList.toggle('hidden', side !== 'output');
+    document.getElementById('tab-input').style.background  = side==='input'  ? 'rgba(99,102,241,0.2)' : 'transparent';
+    document.getElementById('tab-output').style.background = side==='output' ? 'rgba(251,191,36,0.15)' : 'transparent';
+    document.getElementById('tab-input').style.color  = side==='input'  ? 'var(--accent-cyan)' : 'var(--text-muted)';
+    document.getElementById('tab-output').style.color = side==='output' ? 'var(--accent-amber)' : 'var(--text-muted)';
+}
+
+function selectAlgo(side, algo, btn) {
+    const prefix = side;
+    const activeClass = side === 'input' ? 'input-active' : 'output-active';
+    document.querySelectorAll(`#${prefix}-algo-btns .algo-btn`).forEach(b => {
+        b.classList.remove('input-active','output-active');
+        b.style.background = ''; b.style.borderColor = 'var(--border-glass)';
+    });
+    btn.classList.add(activeClass);
+    if (side === 'input') selectedInputAlgo = algo;
+    else selectedOutputAlgo = algo;
+}
+
+function toggleDiff(side) {
+    const el = document.getElementById(`${side}-diff`);
+    const chevron = document.getElementById(`${side}-chevron`);
+    const open = !el.classList.contains('hidden');
+    el.classList.toggle('hidden', open);
+    chevron.style.transform = open ? '' : 'rotate(90deg)';
+}
+
+function renderMetrics(prefix, s) {
+    document.getElementById(`${prefix}-badge`).textContent = `${s.reduction_pct}% reduction`;
+    document.getElementById(`${prefix}-badge`).style.color = s.reduction_pct > 0 ? 'var(--accent-green)' : 'var(--text-muted)';
+    document.getElementById(`${prefix}-metrics`).innerHTML = `
+        <div class="p-3 rounded-xl bg-white/5 text-center">
+            <div class="text-[9px]" style="color:var(--text-muted);">Before</div>
+            <div class="text-lg font-bold" style="color:var(--text-primary);">${s.raw_tokens}<span class="text-xs opacity-40">T</span></div>
+        </div>
+        <div class="p-3 rounded-xl bg-white/5 text-center">
+            <div class="text-[9px]" style="color:var(--text-muted);">After</div>
+            <div class="text-lg font-bold" style="color:var(--accent-green);">${s.processed_tokens}<span class="text-xs opacity-40">T</span></div>
+        </div>
+        <div class="p-3 rounded-xl bg-white/5 text-center">
+            <div class="text-[9px]" style="color:var(--text-muted);">Saved</div>
+            <div class="text-lg font-bold" style="color:var(--accent-cyan);">${s.tokens_saved}<span class="text-xs opacity-40">T</span></div>
+        </div>
+    `;
+}
+
+async function runSide(side) {
+    const textarea = document.getElementById(side === 'input' ? 'input-text' : 'output-text');
+    const text = textarea.value.trim();
+    if (!text) return;
+    const algo = side === 'input' ? selectedInputAlgo : selectedOutputAlgo;
+
+    document.getElementById(`${side}-wait`).classList.add('hidden');
+    document.getElementById(`${side}-result`).classList.remove('hidden');
+    document.getElementById(`${side}-metrics`).innerHTML = '<div class="col-span-3 text-xs text-center" style="color:var(--text-muted);">Processing…</div>';
+
+    try {
+        const res = await fetch('/dashboard/api/pipeline-simulate', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ input_text:text, payload_type:'text', compression_algorithm: algo, routing_threshold_tokens: 9999 })
+        });
+        const data = await res.json();
+        const s = data.summary;
+        renderMetrics(side, s);
+        const compStep = data.steps.find(st => st.step === 2);
+        if (compStep?.diff) {
+            document.getElementById(`${side}-before`).textContent = compStep.diff.before;
+            document.getElementById(`${side}-after-inline`).textContent = compStep.diff.after;
+        }
+    } catch(e) {
+        document.getElementById(`${side}-metrics`).innerHTML = `<p class="col-span-3 text-xs" style="color:var(--accent-red);">Error: ${e.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

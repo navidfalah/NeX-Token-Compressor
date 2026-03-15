@@ -1,0 +1,219 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Pipeline Monitor | Firma-KI{% endblock %}
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            Algorithmic Pipeline Monitor
+        </h1>
+        <p style="color:var(--text-secondary);">Run a full end-to-end simulation. See exactly which compression algorithm ran, how many tokens were saved, which AI model was selected, and why.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6">
+        <!-- Configuration Panel -->
+        <div class="glass-card flex flex-col">
+            <div class="px-6 py-4 border-b" style="border-color:var(--border-glass);">
+                <h3 class="font-bold" style="color:var(--text-primary);">Pipeline Configuration</h3>
+            </div>
+            <div class="p-6 flex flex-col gap-5 flex-1">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Compression Algorithm</label>
+                    <select id="mon-algo" class="w-full px-4 py-3 rounded-xl fi-input" style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                        <option value="ast">Python AST Pruner — strips code comments/docstrings</option>
+                        <option value="regex">Regex Stripper — removes all comment syntax</option>
+                        <option value="nex_s1">NEX S1 Semantic Filter — high-signal sentence extraction</option>
+                        <option value="none">None — send raw payload</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Payload Type</label>
+                    <select id="mon-type" class="w-full px-4 py-3 rounded-xl fi-input" style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                        <option value="code">Code (Python, JS, etc.)</option>
+                        <option value="text">Text / Documents</option>
+                        <option value="auto">Auto Detect</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">
+                        Tier 2 Escalation Threshold — <span id="mon-threshold-val" class="text-indigo-400">500 tokens</span>
+                    </label>
+                    <input type="range" id="mon-threshold" min="50" max="2000" value="500" class="w-full accent-indigo-500">
+                    <div class="flex justify-between text-[9px] mt-1" style="color:var(--text-muted);">
+                        <span>50 (aggressive)</span>
+                        <span>1000</span>
+                        <span>2000 (conservative)</span>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col">
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Your Payload</label>
+                    <textarea id="mon-input" rows="10" class="flex-1 w-full px-4 py-3 rounded-xl fi-input font-mono text-xs resize-none leading-relaxed"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="Enter code, prompt, or document text to trace through the full pipeline..."></textarea>
+                </div>
+            </div>
+            <div class="px-6 pb-6">
+                <button id="mon-run-btn" onclick="runPipelineMonitor()" class="btn-gradient w-full py-4 font-bold text-lg flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Execute Pipeline
+                </button>
+            </div>
+        </div>
+
+        <!-- Trace Panel -->
+        <div class="glass-card flex flex-col overflow-hidden" style="background:#0a0d14; border:1px solid rgba(84,119,146,0.3);">
+            <div class="px-5 py-3.5 border-b flex items-center justify-between" style="border-color:rgba(255,255,255,0.05); background:#0d1117;">
+                <div class="flex gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
+                </div>
+                <div class="text-[10px] font-mono tracking-[0.2em] text-[#547792] uppercase">Pipeline Trace</div>
+                <button onclick="clearTrace()" class="text-[10px] opacity-40 hover:opacity-80 transition-opacity" style="color:var(--text-muted);">CLEAR</button>
+            </div>
+            <div id="mon-trace" class="flex-1 p-5 overflow-y-auto space-y-4 font-mono text-xs" style="min-height: 500px;">
+                <div class="flex gap-3 opacity-40">
+                    <span class="text-[#547792] flex-shrink-0">--:--:--</span>
+                    <span style="color:#a3b8c8;">// Firma-KI Pipeline Virtualizer — ready.</span>
+                </div>
+                <div class="flex gap-3 opacity-40">
+                    <span class="text-[#547792] flex-shrink-0">--:--:--</span>
+                    <span style="color:#547792;">// Configure the pipeline above and click Execute.</span>
+                </div>
+            </div>
+
+            <!-- Summary Bar (shows after trace) -->
+            <div id="mon-summary" class="hidden px-5 py-4 border-t" style="border-color:rgba(255,255,255,0.05); background:#0d1117;">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const trace = document.getElementById('mon-trace');
+
+document.getElementById('mon-threshold').oninput = e => {
+    document.getElementById('mon-threshold-val').textContent = e.target.value + ' tokens';
+};
+
+function ts() {
+    return new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+
+function addTrace(msg, color = '#a3b8c8', prefix = '') {
+    const div = document.createElement('div');
+    div.className = 'flex gap-3 animate-fade-in';
+    div.innerHTML = `<span class="flex-shrink-0" style="color:#547792;">${ts()}</span><span style="color:${color};">${prefix}${msg}</span>`;
+    trace.appendChild(div);
+    trace.scrollTop = trace.scrollHeight;
+}
+
+function addDivider(label) {
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-3 my-2 animate-fade-in';
+    div.innerHTML = `<div class="flex-1 h-px" style="background:rgba(255,255,255,0.05);"></div><span class="text-[9px] tracking-[0.2em] uppercase" style="color:#547792;">${label}</span><div class="flex-1 h-px" style="background:rgba(255,255,255,0.05);"></div>`;
+    trace.appendChild(div);
+    trace.scrollTop = trace.scrollHeight;
+}
+
+function clearTrace() {
+    trace.innerHTML = '';
+    document.getElementById('mon-summary').classList.add('hidden');
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runPipelineMonitor() {
+    const input = document.getElementById('mon-input').value.trim();
+    if (!input) { addTrace('ERROR: No payload provided.', '#f87171', '[!] '); return; }
+
+    clearTrace();
+    addDivider('PIPELINE INITIALIZING');
+    addTrace('Process started. Configuring gateway context...', '#547792');
+    await sleep(150);
+
+    const btn = document.getElementById('mon-run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    try {
+        const res = await fetch('/dashboard/api/pipeline-simulate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                input_text: input,
+                payload_type: document.getElementById('mon-type').value,
+                compression_algorithm: document.getElementById('mon-algo').value,
+                routing_threshold_tokens: parseInt(document.getElementById('mon-threshold').value)
+            })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('Simulation failed');
+
+        for (const step of data.steps) {
+            await sleep(200);
+            addDivider(`STAGE ${step.step} — ${step.name.toUpperCase()}`);
+
+            const stepColor = step.status === 'success' ? '#4ade80' : step.status === 'warning' ? '#fbbf24' : '#f87171';
+            const marker = step.status === 'success' ? '[✓]' : '[!]';
+            addTrace(step.details, stepColor, marker + ' ');
+            await sleep(100);
+
+            // Print each metric as a sub-line
+            if (step.metrics) {
+                for (const [k, v] of Object.entries(step.metrics)) {
+                    if (Array.isArray(v) && v.length === 0) continue;
+                    const valStr = Array.isArray(v) ? v.join(', ') : String(v);
+                    await sleep(50);
+                    addTrace(`${k.replace(/_/g,' ')}: <strong>${valStr}</strong>`, '#547792');
+                }
+            }
+
+            // Diff preview
+            if (step.diff) {
+                await sleep(100);
+                addTrace('Before (truncated): ' + step.diff.before.slice(0, 120).replace(/\n/g, '↩ ') + '…', '#f87171', '    ');
+                addTrace('After  (truncated): ' + step.diff.after.slice(0, 120).replace(/\n/g, '↩ ') + '…', '#4ade80', '    ');
+            }
+        }
+
+        await sleep(200);
+        addDivider('PIPELINE COMPLETE');
+
+        // Summary bar
+        const s = data.summary;
+        const tier2 = s.tier === 2;
+        const summaryEl = document.getElementById('mon-summary');
+        summaryEl.classList.remove('hidden');
+        summaryEl.innerHTML = `
+            <div class="grid grid-cols-4 gap-4">
+                <div class="text-center">
+                    <div class="text-[9px] tracking-widest uppercase" style="color:#547792;">AI Model</div>
+                    <div class="text-sm font-bold mt-0.5" style="color:${tier2 ? '#fbbf24' : '#4ade80'};">${s.model_selected}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[9px] tracking-widest uppercase" style="color:#547792;">Tokens Saved</div>
+                    <div class="text-sm font-bold mt-0.5" style="color:#4ade80;">${s.tokens_saved} (${s.reduction_pct}%)</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[9px] tracking-widest uppercase" style="color:#547792;">Algorithm</div>
+                    <div class="text-sm font-bold mt-0.5" style="color:#a3b8c8;">${s.algorithm_used}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[9px] tracking-widest uppercase" style="color:#547792;">Est. Cost</div>
+                    <div class="text-sm font-bold mt-0.5" style="color:#a3b8c8;">$${s.estimated_cost_usd}</div>
+                </div>
+            </div>`;
+
+    } catch(e) {
+        addTrace('FATAL: ' + e.message, '#f87171', '[✗] ');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Execute Pipeline`;
+    }
+}
+</script>
+{% endblock %}

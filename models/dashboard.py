@@ -29,6 +29,12 @@ class AIProvider(Base):
     is_system = Column(Boolean, nullable=False, default=False)
     organization_id = Column(String(32), ForeignKey("accounts_organization.id"), nullable=True)
 
+    @property
+    def masked_api_key(self):
+        if self.api_key:
+            return f"{self.api_key[:6]}...{self.api_key[-4:]}" if len(self.api_key) > 10 else self.api_key
+        return "N/A"
+
 
 class APIKey(Base):
     __tablename__ = "dashboard_apikey"
@@ -48,6 +54,12 @@ class APIKey(Base):
     enable_compression = Column(Boolean, nullable=False, default=True)
     linked_provider_id = Column(String(32), ForeignKey("dashboard_aiprovider.id"), nullable=True)
     rate_limit = Column(Integer, nullable=False, default=60)
+
+    @property
+    def masked_key(self):
+        if self.key:
+            return f"{self.key[:6]}...{self.key[-4:]}" if len(self.key) > 10 else self.key
+        return "N/A"
 
     organization = relationship("Organization", back_populates="api_keys")
 
@@ -96,6 +108,24 @@ class AuditLog(Base):
     api_key_id = Column(String(32), ForeignKey("dashboard_apikey.id"), nullable=True)
     organization_id = Column(String(32), ForeignKey("accounts_organization.id"), nullable=False)
     user_id = Column(String(32), ForeignKey("accounts_user.id"), nullable=True)
+
+    ai_provider = relationship("AIProvider")
+    api_key = relationship("APIKey")
+    organization = relationship("Organization")
+    @property
+    def source_label(self):
+        return self.source.capitalize()
+
+    @property
+    def api_key_masked(self):
+        if self.api_key:
+            return f"{self.api_key.key[:6]}...{self.api_key.key[-4:]}"
+        return "N/A"
+
+    @property
+    def stripped_tags(self):
+        # Logic to extract redacted entities could go here
+        return []
 
 
 class CascadeConfig(Base):

@@ -1,0 +1,143 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Compression Hub | Firma-KI{% endblock %}
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+            </div>
+            Compression Hub
+        </h1>
+        <p style="color:var(--text-secondary);">Paste your code or text below, select a compression algorithm, and see real token savings applied by the compression engine.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8">
+        <!-- Input Section -->
+        <div class="glass-card p-8 flex flex-col gap-6">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Select Algorithm</label>
+                <div class="grid grid-cols-3 gap-2" id="algo-selector">
+                    <button onclick="selectAlgo(this,'ast')" data-algo="ast" class="algo-btn active-algo p-3 rounded-xl border text-xs font-bold text-center transition-all" style="border-color:var(--border-glass); color:var(--text-primary);">
+                        Python AST<br><span class="text-[9px] opacity-60">Code pruner</span>
+                    </button>
+                    <button onclick="selectAlgo(this,'regex')" data-algo="regex" class="algo-btn p-3 rounded-xl border text-xs font-bold text-center transition-all" style="border-color:var(--border-glass); color:var(--text-primary);">
+                        Regex Strip<br><span class="text-[9px] opacity-60">Comment remover</span>
+                    </button>
+                    <button onclick="selectAlgo(this,'nex_s1')" data-algo="nex_s1" class="algo-btn p-3 rounded-xl border text-xs font-bold text-center transition-all" style="border-color:var(--border-glass); color:var(--text-primary);">
+                        NEX S1<br><span class="text-[9px] opacity-60">Semantic filter</span>
+                    </button>
+                </div>
+                <div id="algo-description" class="mt-3 text-xs p-3 rounded-xl" style="background:rgba(255,255,255,0.03); color:var(--text-secondary);">
+                    <strong style="color:var(--accent-cyan);">Python AST Pruner:</strong> Parses Python source code and strips docstrings and string-constant comments via the abstract syntax tree. Best for code payloads.
+                </div>
+            </div>
+            <div class="flex-1 flex flex-col">
+                <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Raw Input Payload</label>
+                <textarea id="comp-input" rows="12" class="flex-1 w-full px-4 py-3 rounded-xl fi-input font-mono text-xs resize-none leading-relaxed"
+                    style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                    placeholder="Paste code or text here...&#10;&#10;Example (Python):&#10;def compute(x):&#10;    # calculate the result&#10;    &quot;&quot;&quot;docstring&quot;&quot;&quot;&#10;    return x * 2"></textarea>
+            </div>
+            <button onclick="runCompressionTest()" class="btn-gradient w-full py-3 font-bold flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"/></svg>
+                Run Compression
+            </button>
+        </div>
+
+        <!-- Result Section -->
+        <div class="glass-card flex flex-col">
+            <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
+                <span class="text-sm font-bold uppercase tracking-widest" style="color:var(--text-muted);">Compression Result</span>
+                <span id="comp-reduction-badge" class="text-xs font-bold px-2 py-1 rounded" style="background:rgba(255,255,255,0.05); color:var(--text-muted);">—</span>
+            </div>
+            <div id="comp-wait" class="flex-1 flex items-center justify-center p-8 text-center">
+                <p class="text-sm" style="color:var(--text-muted);">Run compression to see the diff, token savings and algorithm steps.</p>
+            </div>
+            <div id="comp-result" class="hidden flex-1 flex flex-col gap-4 p-6 overflow-y-auto">
+                <!-- Token Summary -->
+                <div id="comp-metrics" class="grid grid-cols-3 gap-3"></div>
+                <!-- Diff Viewer -->
+                <div class="flex flex-col gap-3 flex-1">
+                    <div class="flex-1 min-h-0">
+                        <div class="text-[10px] font-bold uppercase tracking-widest mb-1.5 px-1" style="color:var(--accent-red);">Before</div>
+                        <div id="comp-before" class="h-40 overflow-y-auto p-3 rounded-xl font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all" style="background:rgba(248,113,113,0.05); border:1px solid rgba(248,113,113,0.15); color:var(--text-secondary);"></div>
+                    </div>
+                    <div class="flex-1 min-h-0">
+                        <div class="text-[10px] font-bold uppercase tracking-widest mb-1.5 px-1" style="color:var(--accent-green);">After (Compressed)</div>
+                        <div id="comp-after" class="h-40 overflow-y-auto p-3 rounded-xl font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-all" style="background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.15); color:var(--text-secondary);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.active-algo { background:rgba(99,102,241,0.15) !important; border-color:rgba(99,102,241,0.5) !important; color:white !important; }
+</style>
+
+<script>
+const algos = {
+    ast: { label: 'Python AST Pruner', desc: '<strong style="color:var(--accent-cyan);">Python AST Pruner:</strong> Parses Python source code and strips docstrings and string-constant comments via the abstract syntax tree. Best for code payloads.' },
+    regex: { label: 'Regex Comment Stripper', desc: '<strong style="color:var(--accent-amber);">Regex Comment Stripper:</strong> Uses regular expressions to remove inline comments, triple-quoted strings, and collapse blank lines. Works for any language.' },
+    nex_s1: { label: 'NEX Semantic Density Filter', desc: '<strong style="color:var(--accent-green);">NEX S1 Semantic Filter:</strong> Extracts high-signal sentences from large text inputs, removing low-value filler. Best for documents, transcripts, and meeting notes.' },
+};
+
+let selectedAlgo = 'ast';
+
+function selectAlgo(btn, algo) {
+    document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('active-algo'));
+    btn.classList.add('active-algo');
+    selectedAlgo = algo;
+    document.getElementById('algo-description').innerHTML = algos[algo].desc;
+}
+
+async function runCompressionTest() {
+    const input = document.getElementById('comp-input').value.trim();
+    if (!input) return;
+
+    document.getElementById('comp-wait').classList.add('hidden');
+    document.getElementById('comp-result').classList.remove('hidden');
+    document.getElementById('comp-metrics').innerHTML = '<div class="col-span-3 text-xs text-center" style="color:var(--text-muted);">Processing...</div>';
+
+    try {
+        const res = await fetch('/dashboard/api/pipeline-simulate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ input_text: input, payload_type: 'code', compression_algorithm: selectedAlgo, routing_threshold_tokens: 500 })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('Failed');
+
+        const s = data.summary;
+        const compStep = data.steps.find(st => st.step === 2);
+
+        document.getElementById('comp-reduction-badge').textContent = `${s.reduction_pct}% reduction`;
+        document.getElementById('comp-reduction-badge').style.background = s.reduction_pct > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)';
+        document.getElementById('comp-reduction-badge').style.color = s.reduction_pct > 0 ? 'var(--accent-green)' : 'var(--text-muted)';
+
+        document.getElementById('comp-metrics').innerHTML = `
+            <div class="p-3 rounded-xl bg-white/5 text-center">
+                <div class="text-[10px]" style="color:var(--text-muted);">Raw Tokens</div>
+                <div class="text-xl font-bold" style="color:var(--text-primary);">${s.raw_tokens}</div>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5 text-center">
+                <div class="text-[10px]" style="color:var(--text-muted);">After</div>
+                <div class="text-xl font-bold" style="color:var(--accent-green);">${s.processed_tokens}</div>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5 text-center">
+                <div class="text-[10px]" style="color:var(--text-muted);">Saved</div>
+                <div class="text-xl font-bold" style="color:var(--accent-cyan);">${s.tokens_saved}</div>
+            </div>
+        `;
+
+        if (compStep?.diff) {
+            document.getElementById('comp-before').textContent = compStep.diff.before;
+            document.getElementById('comp-after').textContent = compStep.diff.after;
+        }
+    } catch(e) {
+        document.getElementById('comp-metrics').innerHTML = `<p class="col-span-3 text-xs" style="color:var(--accent-red);">Error: ${e.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

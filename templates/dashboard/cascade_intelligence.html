@@ -1,0 +1,158 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Cascade Routing | Firma-KI{% endblock %}
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            Dynamic Cascade Routing
+        </h1>
+        <p style="color:var(--text-secondary);">Test the routing algorithm live. The system evaluates complexity heuristics and decides whether to use Tier 1 (DeepSeek) or Tier 2 (Gemini).</p>
+    </div>
+
+    <!-- Algorithm Reference -->
+    <div class="glass-card p-6 mb-8 grid md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl border border-dashed" style="border-color:var(--border-glass);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--accent-cyan);">Heuristic</div>
+            <div class="font-bold mb-1" style="color:var(--text-primary);">Token Length Check</div>
+            <p class="text-xs" style="color:var(--text-secondary);">If the compressed payload exceeds the threshold, escalate to Tier 2. Configurable per API key.</p>
+        </div>
+        <div class="p-4 rounded-xl border border-dashed" style="border-color:var(--border-glass);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--accent-amber);">Keyword Scan</div>
+            <div class="font-bold mb-1" style="color:var(--text-primary);">Complexity Signals</div>
+            <p class="text-xs" style="color:var(--text-secondary);">Detects mathematical/logical markers: derivative, theorem, proof, integral, multi-step, etc.</p>
+        </div>
+        <div class="p-4 rounded-xl border border-dashed" style="border-color:var(--border-glass);">
+            <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--accent-green);">Fallback</div>
+            <div class="font-bold mb-1" style="color:var(--text-primary);">Tier 1 Default</div>
+            <p class="text-xs" style="color:var(--text-secondary);">All standard prompts route to DeepSeek. Only escalation triggers cause a Tier 2 redirect.</p>
+        </div>
+    </div>
+
+    <!-- Interactive Routing Test -->
+    <div class="grid lg:grid-cols-2 gap-8">
+        <div class="glass-card p-8">
+            <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Route Simulator</h3>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Compression Algorithm</label>
+                    <select id="cas-algorithm" class="w-full px-4 py-3 rounded-xl fi-input" style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                        <option value="ast">Python AST Pruner</option>
+                        <option value="regex">Regex Comment Stripper</option>
+                        <option value="nex_s1">NEX Semantic Density Filter</option>
+                        <option value="none">None — raw payload</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Tier 2 Token Threshold</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" id="cas-threshold" min="50" max="2000" value="500" class="flex-1 accent-indigo-500">
+                        <span id="cas-threshold-val" class="text-sm font-mono w-20 text-right" style="color:var(--text-primary);">500 tokens</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--text-muted);">Your Prompt / Payload</label>
+                    <textarea id="cas-input" rows="8" class="w-full px-4 py-3 rounded-xl fi-input font-mono text-sm resize-none"
+                        style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);"
+                        placeholder="Type any prompt or code here to see how the routing algorithm classifies it..."></textarea>
+                </div>
+                <button onclick="runCascadeTest()" class="btn-gradient w-full py-3 font-bold flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Run Route Analysis
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Panel -->
+        <div class="glass-card flex flex-col">
+            <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
+                <span class="text-sm font-bold uppercase tracking-widest" style="color:var(--text-muted);">Routing Decision</span>
+                <div id="cas-status-dot" class="w-2 h-2 rounded-full bg-white/20"></div>
+            </div>
+            <div id="cas-result-waiting" class="flex-1 flex items-center justify-center p-8 text-center">
+                <div>
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-white/5">
+                        <svg class="w-6 h-6 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3"/></svg>
+                    </div>
+                    <p class="text-sm" style="color:var(--text-muted);">Submit a payload to see the routing decision and algorithmic trace.</p>
+                </div>
+            </div>
+            <div id="cas-result" class="hidden flex-1 p-6 space-y-4 overflow-y-auto">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('cas-threshold').oninput = (e) => {
+    document.getElementById('cas-threshold-val').textContent = e.target.value + ' tokens';
+};
+
+async function runCascadeTest() {
+    const input = document.getElementById('cas-input').value.trim();
+    if (!input) return;
+    
+    const dot = document.getElementById('cas-status-dot');
+    dot.className = 'w-2 h-2 rounded-full animate-pulse bg-yellow-400';
+    document.getElementById('cas-result-waiting').classList.add('hidden');
+    document.getElementById('cas-result').classList.remove('hidden');
+    document.getElementById('cas-result').innerHTML = '<p class="text-sm" style="color:var(--text-muted);">Analyzing...</p>';
+    
+    try {
+        const res = await fetch('/dashboard/api/pipeline-simulate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                input_text: input,
+                payload_type: 'auto',
+                compression_algorithm: document.getElementById('cas-algorithm').value,
+                routing_threshold_tokens: parseInt(document.getElementById('cas-threshold').value)
+            })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('Simulation failed');
+        
+        const s = data.summary;
+        const tier2 = s.tier === 2;
+        dot.className = `w-2 h-2 rounded-full ${tier2 ? 'bg-amber-400' : 'bg-green-400'}`;
+        
+        document.getElementById('cas-result').innerHTML = `
+            <div class="p-5 rounded-2xl border text-center" style="background:${tier2 ? 'rgba(251,191,36,0.08)' : 'rgba(16,185,129,0.08)'}; border-color:${tier2 ? 'rgba(251,191,36,0.3)' : 'rgba(16,185,129,0.3)'};">
+                <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:var(--text-muted);">${tier2 ? 'Tier 2 Escalation' : 'Tier 1 Standard'}</div>
+                <div class="text-2xl font-black mb-1" style="color:${tier2 ? 'var(--accent-amber)' : 'var(--accent-green)'};">${s.model_selected}</div>
+                <div class="text-xs" style="color:var(--text-muted);">${s.algorithm_used}</div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Raw Tokens</div>
+                    <div class="text-xl font-bold" style="color:var(--text-primary);">${s.raw_tokens}</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">After Compression</div>
+                    <div class="text-xl font-bold" style="color:var(--accent-green);">${s.processed_tokens}</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Tokens Saved</div>
+                    <div class="text-xl font-bold" style="color:var(--text-primary);">${s.tokens_saved}</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/5 text-center">
+                    <div class="text-xs" style="color:var(--text-muted);">Est. Cost</div>
+                    <div class="text-xl font-bold" style="color:var(--text-primary);">$${s.estimated_cost_usd}</div>
+                </div>
+            </div>
+            ${data.steps.find(s=>s.step===3)?.metrics?.complexity_signals?.length > 0 ? `
+            <div class="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+                <div class="text-xs font-bold mb-2" style="color:var(--accent-amber);">Complexity Signals Detected</div>
+                <div class="flex flex-wrap gap-1">${data.steps.find(s=>s.step===3).metrics.complexity_signals.map(k=>`<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10" style="color:var(--accent-amber);">${k}</span>`).join('')}</div>
+            </div>` : ''}
+        `;
+    } catch(e) {
+        dot.className = 'w-2 h-2 rounded-full bg-red-400';
+        document.getElementById('cas-result').innerHTML = `<p class="text-sm" style="color:var(--accent-red);">Error: ${e.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

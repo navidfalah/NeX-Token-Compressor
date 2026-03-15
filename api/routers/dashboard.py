@@ -147,6 +147,63 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
 
     # ── User usage ───────────────────────────────────────────────────────────────
     user_usage: list = []
+    
+    # ── NEX Algorithm Registries (for Test Lab) ──────────────────────────────
+    from services.gateway.compression.nex_code_compressor import ALGO_REGISTRY as CODE_ALGO
+    from services.gateway.compression.nex_text_compressor import ALGO_REGISTRY as TEXT_ALGO
+    
+    return templates.TemplateResponse("dashboard/index.html", {
+        "request": request,
+        "active_page": "dashboard",
+        "total_requests": total_requests,
+        "nex_requests_today": nex_requests_today,
+        "tokens_original": tokens_original,
+        "tokens_compressed": tokens_compressed,
+        "tokens_response": tokens_response,
+        "cost_saved": float(cost_saved),
+        "recent_logs": recent_logs,
+        "daily_stats": daily_stats,
+        "provider_stats": provider_stats,
+        "user_usage": user_usage,
+        "user": current_user,
+    })
+
+@router.get("/compression/test-lab", response_class=HTMLResponse)
+async def test_lab(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(login_required)):
+    from services.gateway.compression.nex_code_compressor import ALGO_REGISTRY as CODE_ALGO
+    from services.gateway.compression.nex_text_compressor import ALGO_REGISTRY as TEXT_ALGO
+    
+    common = await get_common_context(db, current_user)
+    return templates.TemplateResponse("dashboard/compression_test_lab.html", {
+        "request": request,
+        "active_page": "test_lab",
+        "code_algos": CODE_ALGO,
+        "text_algos": TEXT_ALGO,
+        **common
+    })
+
+@router.post("/api/compression/test-action")
+async def api_test_compression(
+    request: Request, 
+    db: AsyncSession = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user:
+        return {"error": "Unauthorized"}
+    
+    data = await request.json()
+    input_text = data.get("text", "")
+    algo_key = data.get("algo", "")
+    mode = data.get("mode", "code") # "code" or "text"
+    
+    if mode == "code":
+        from services.gateway.compression.nex_code_compressor import NEXCodeCompressor
+        result = NEXCodeCompressor.compress_with_algo(input_text, algo_key)
+    else:
+        from services.gateway.compression.nex_text_compressor import NEXTextCompressor
+        result = NEXTextCompressor.compress_with_algo(input_text, algo_key)
+        
+    return result.summary() | {"compressed_text": result.compressed}
 
     # ── Peak hours ───────────────────────────────────────────────────────────────
     peak_usage = []
@@ -237,10 +294,102 @@ async def ai_providers(request: Request, db: AsyncSession = Depends(get_db), cur
     )
     res = await db.execute(stmt)
     providers = res.scalars().all()
-    
+
     context = await get_common_context(db, current_user)
     context["providers"] = providers
+    context["error_message"] = None
     return templates.TemplateResponse("dashboard/ai_providers.html", {"request": request, **context})
+
+
+@router.post("/providers", response_class=HTMLResponse)
+async def ai_providers_post(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user: return RedirectResponse(url="/login")
+    form = await request.form()
+    action = form.get("action", "")
+    error_message = None
+
+    try:
+        if action == "create":
+            name = (form.get("name") or "").strip()
+            if not name:
+                error_message = "Provider name is required."
+            else:
+                new_prov = AIProvider(
+                    name=name,
+                    provider_type=form.get("provider_type", "custom"),
+                    api_base_url=(form.get("api_base_url") or "").strip(),
+                    api_key=(form.get("api_key") or "").strip(),
+                    model_name=(form.get("model_name") or "").strip(),
+                    output_webhook_url=(form.get("output_webhook_url") or "").strip(),
+                    max_tokens=int(form.get("max_tokens") or 4096),
+                    temperature=float(form.get("temperature") or 0.7),
+                    is_active=True,
+                    is_default=False,
+                    is_system=False,
+                    organization_id=current_user.organization_id,
+                )
+                db.add(new_prov)
+                await db.commit()
+
+        elif action == "toggle":
+            provider_id = form.get("provider_id")
+            stmt_p = select(AIProvider).where(
+                AIProvider.id == provider_id,
+                AIProvider.organization_id == current_user.organization_id,
+                AIProvider.is_system == False,
+            )
+            res_p = await db.execute(stmt_p)
+            prov = res_p.scalar_one_or_none()
+            if prov:
+                prov.is_active = not prov.is_active
+                await db.commit()
+
+        elif action == "set_default":
+            provider_id = form.get("provider_id")
+            # Clear existing default for org
+            stmt_clear = select(AIProvider).where(AIProvider.organization_id == current_user.organization_id)
+            res_clear = await db.execute(stmt_clear)
+            for p in res_clear.scalars().all():
+                p.is_default = False
+            # Set new default
+            stmt_p = select(AIProvider).where(
+                AIProvider.id == provider_id,
+                AIProvider.organization_id == current_user.organization_id,
+            )
+            res_p = await db.execute(stmt_p)
+            prov = res_p.scalar_one_or_none()
+            if prov:
+                prov.is_default = True
+            await db.commit()
+
+        elif action == "delete":
+            provider_id = form.get("provider_id")
+            stmt_p = select(AIProvider).where(
+                AIProvider.id == provider_id,
+                AIProvider.organization_id == current_user.organization_id,
+                AIProvider.is_system == False,
+            )
+            res_p = await db.execute(stmt_p)
+            prov = res_p.scalar_one_or_none()
+            if prov:
+                await db.delete(prov)
+                await db.commit()
+
+    except Exception as exc:
+        await db.rollback()
+        error_message = str(exc)
+
+    # Reload list
+    stmt = select(AIProvider).where(
+        (AIProvider.organization_id == current_user.organization_id) | (AIProvider.is_system == True)
+    )
+    res = await db.execute(stmt)
+    providers = res.scalars().all()
+    context = await get_common_context(db, current_user)
+    context["providers"] = providers
+    context["error_message"] = error_message
+    return templates.TemplateResponse("dashboard/ai_providers.html", {"request": request, **context})
+
 
 @router.get("/team", response_class=HTMLResponse, name="dashboard_team")
 async def team_management(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -337,61 +486,7 @@ async def api_key_post(request: Request, db: AsyncSession = Depends(get_db), cur
     return templates.TemplateResponse("dashboard/api_keys.html", {"request": request, **context})
 
 
-@router.get("/audit", response_class=HTMLResponse, name="dashboard_security_audit")
-async def security_audit(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    
-    stmt_logs = select(AuditLog).options(selectinload(AuditLog.ai_provider)).where(AuditLog.organization_id == current_user.organization_id).order_by(desc(AuditLog.timestamp)).limit(50)
-    res_logs = await db.execute(stmt_logs)
-    logs = res_logs.scalars().all()
 
-    stmt_keys = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
-    res_keys = await db.execute(stmt_keys)
-    api_keys = res_keys.scalars().all()
-    
-    context = await get_common_context(db, current_user)
-    context.update({
-        "logs": logs,
-        "api_keys": api_keys
-    })
-    return templates.TemplateResponse("dashboard/security_audit.html", {"request": request, **context})
-
-@router.get("/audit-list", response_class=HTMLResponse, name="dashboard_audit_list")
-async def audit_list_view(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    search = request.query_params.get("search", "")
-    status_filter = request.query_params.get("status", "")
-    
-    stmt = select(AuditLog).options(selectinload(AuditLog.ai_provider)).where(AuditLog.organization_id == current_user.organization_id)
-    if search:
-        stmt = stmt.where(AuditLog.original_payload.contains(search) | AuditLog.final_response.contains(search))
-    if status_filter:
-        stmt = stmt.where(AuditLog.status == status_filter)
-        
-    stmt = stmt.order_by(desc(AuditLog.timestamp)).limit(100)
-    res = await db.execute(stmt)
-    logs = res.scalars().all()
-    
-    context = await get_common_context(db, current_user)
-    context.update({
-        "logs": logs, 
-        "search": search, 
-        "status_filter": status_filter
-    })
-    return templates.TemplateResponse("dashboard/audit_list.html", {"request": request, **context})
-
-@router.get("/audit/{log_id}", response_class=HTMLResponse, name="dashboard_audit_detail")
-async def audit_detail(request: Request, log_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    stmt = select(AuditLog).where(AuditLog.id == log_id, AuditLog.organization_id == current_user.organization_id)
-    res = await db.execute(stmt)
-    log = res.scalar_one_or_none()
-    if not log:
-        raise HTTPException(status_code=404, detail="Log not found")
-        
-    context = await get_common_context(db, current_user)
-    context["log"] = log
-    return templates.TemplateResponse("dashboard/audit_detail.html", {"request": request, **context})
 
 @router.get("/playground", response_class=HTMLResponse, name="dashboard_playground")
 async def playground(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -403,50 +498,6 @@ async def playground(request: Request, db: AsyncSession = Depends(get_db), curre
     context = await get_common_context(db, current_user)
     context["api_keys"] = api_keys
     return templates.TemplateResponse("dashboard/playground.html", {"request": request, **context})
-@router.get("/documents", response_class=HTMLResponse, name="dashboard_masked_documents_list")
-async def masked_documents_list(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    stmt = select(SecureDocument).where(SecureDocument.organization_id == current_user.organization_id).options(selectinload(SecureDocument.key_mappings))
-    res = await db.execute(stmt)
-    documents = res.scalars().all()
-    
-    context = await get_common_context(db, current_user)
-    context["documents"] = documents
-    return templates.TemplateResponse("dashboard/masked_documents_list.html", {"request": request, **context})
-
-@router.get("/documents/{doc_id}", response_class=HTMLResponse, name="dashboard_masked_document_chat")
-async def masked_document_chat(request: Request, doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    stmt = select(SecureDocument).where(SecureDocument.id == doc_id, SecureDocument.organization_id == current_user.organization_id).options(selectinload(SecureDocument.key_mappings))
-    res = await db.execute(stmt)
-    document = res.scalar_one_or_none()
-    if not document: raise HTTPException(status_code=404, detail="Document not found")
-    
-    context = await get_common_context(db, current_user)
-    context["document"] = document
-    return templates.TemplateResponse("dashboard/masked_document_chat.html", {"request": request, **context})
-
-@router.get("/documents/{doc_id}/preview", response_class=HTMLResponse, name="dashboard_masked_document_preview_text")
-async def masked_document_preview_text(request: Request, doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    stmt = select(SecureDocument).where(SecureDocument.id == doc_id, SecureDocument.organization_id == current_user.organization_id)
-    res = await db.execute(stmt)
-    document = res.scalar_one_or_none()
-    if not document: raise HTTPException(status_code=404, detail="Document not found")
-    
-    context = await get_common_context(db, current_user)
-    context["document"] = document
-    return templates.TemplateResponse("dashboard/masked_document_preview.html", {"request": request, **context})
-
-@router.get("/documents/{doc_id}/download-text", name="dashboard_masked_document_download_text")
-async def masked_document_download_text(doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Placeholder for download logic
-    return RedirectResponse(url="/dashboard/documents")
-
-@router.get("/documents/{doc_id}/preview-pdf", name="dashboard_masked_document_preview_pdf")
-async def masked_document_preview_pdf(doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Placeholder
-    return RedirectResponse(url="/dashboard/documents")
 @router.get("/edge-nodes", response_class=HTMLResponse, name="dashboard_edge_nodes")
 async def edge_nodes(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
@@ -459,31 +510,6 @@ async def mcp_tools(request: Request, db: AsyncSession = Depends(get_db), curren
     context = await get_common_context(db, current_user)
     return templates.TemplateResponse("dashboard/mcp_tools.html", {"request": request, **context})
 
-@router.get("/documents/{doc_id}/download-pdf", name="dashboard_masked_document_download_pdf")
-async def masked_document_download_pdf(doc_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Placeholder
-    return RedirectResponse(url="/dashboard/documents")
-
-@router.get("/privacy", response_class=HTMLResponse, name="dashboard_privacy")
-async def privacy_view(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user: return RedirectResponse(url="/login")
-    stmt = select(PrivacyConfig).where(PrivacyConfig.organization_id == current_user.organization_id)
-    res = await db.execute(stmt)
-    config = res.scalar_one_or_none()
-    if not config:
-        config = PrivacyConfig(organization_id=current_user.organization_id)
-        db.add(config)
-        await db.commit()
-        await db.refresh(config)
-        
-    context = await get_common_context(db, current_user)
-    context["config"] = config
-    return templates.TemplateResponse("dashboard/privacy.html", {"request": request, **context})
-
-@router.post("/privacy", name="dashboard_privacy_post")
-async def privacy_post(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Placeholder for post logic
-    return RedirectResponse(url="/dashboard/privacy")
 
 @router.get("/cascade", response_class=HTMLResponse, name="dashboard_cascade")
 async def cascade_intelligence(
@@ -583,11 +609,6 @@ async def stream_normalization(request: Request, db: AsyncSession = Depends(get_
     return templates.TemplateResponse("dashboard/output_stream_normalization.html", {"request": request, **context})
 
 
-@router.get("/output/egress-sanitization", response_class=HTMLResponse, name="dashboard_egress_sanitization")
-async def egress_sanitization(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if not user: return RedirectResponse(url="/login")
-    context = await get_common_context(db, user)
-    return templates.TemplateResponse("dashboard/output_egress_sanitization.html", {"request": request, **context})
 
 
 @router.get("/analytics", response_class=HTMLResponse, name="dashboard_analytics")

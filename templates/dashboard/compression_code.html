@@ -28,29 +28,61 @@
             <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:var(--accent-cyan);">INPUT SIDE — Before Sending to AI</div>
             <p class="text-xs" style="color:var(--text-muted);">These algorithms run on your code BEFORE it is dispatched to the AI API. Goal: maximum token reduction while preserving 100% of the semantic content the model needs to reason about.</p>
             <div class="grid md:grid-cols-4 gap-3 mt-4" id="input-algo-btns">
-                <button onclick="selectAlgo('input','ast',this)" class="algo-btn input-active p-3 rounded-xl border text-left" style="border-color:rgba(99,102,241,0.4); background:rgba(99,102,241,0.08);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Python AST Prune</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Strip docstrings via parse tree</div>
+                <!-- Level 🟢 LIGHT -->
+                <button onclick="selectAlgo('input','whitespace',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Whitespace Compact</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-black">LIGHT</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Collapse blank lines & spaces</div>
                 </button>
-                <button onclick="selectAlgo('input','type_erase',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Type Annotation Erase</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Remove type hints → AI doesn't need them</div>
+                <button onclick="selectAlgo('input','import_dedup',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Import Deduplicator</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-black">LIGHT</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Remove duplicate imports</div>
                 </button>
-                <button onclick="selectAlgo('input','regex',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Comment Pruner</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Multi-language # // /* */ removal</div>
+
+                <!-- Level 🟡 MEDIUM -->
+                <button onclick="selectAlgo('input','comment_prune',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Comment Pruner</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 font-black">MEDIUM</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Strip #, //, /* */ comments</div>
                 </button>
-                <button onclick="selectAlgo('input','dead_code',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Dead Code Eliminate</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Unreachable branches after return/raise</div>
+                <button onclick="selectAlgo('input','struct_dedup',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Structural Dedup</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 font-black">MEDIUM</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Hash-based block removal</div>
                 </button>
-                <button onclick="selectAlgo('input','minifier',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Python Minifier</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Aggressive type hint + whitespace pass</div>
+
+                <!-- Level 🟠 AGGRESSIVE -->
+                <button onclick="selectAlgo('input','ast_strip',this)" class="algo-btn input-active p-3 rounded-xl border text-left" style="border-color:rgba(251,146,60,0.4); background:rgba(251,146,60,0.08);">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Python AST Prune</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 font-black">AGGRESSIVE</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Deep docstring & expression removal</div>
                 </button>
-                <button onclick="selectAlgo('input','whitespace',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Whitespace Compact</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Collapse blank lines, trailing spaces</div>
+                <button onclick="selectAlgo('input','id_minify',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">ID Minifier</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 font-black">AGGRESSIVE</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Rename local vars to a, b, c...</div>
+                </button>
+
+                <!-- Level 🔴 EXTREME -->
+                <button onclick="selectAlgo('input','nex_transpile',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px] text-red-300">NEX Bytecode</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-red-500/20 text-red-500 font-black">EXTREME</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Transpile to bracket notation</div>
                 </button>
             </div>
         </div>

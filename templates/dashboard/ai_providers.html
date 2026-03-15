@@ -17,6 +17,12 @@
     </button>
 </div>
 
+{% if error_message %}
+<div class="mb-6 p-4 rounded-xl text-sm font-medium" style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.25); color:#f87171;">
+    ⚠ {{ error_message }}
+</div>
+{% endif %}
+
 <div class="grid md:grid-cols-2 gap-4">
     {% for provider in providers %}
     <div class="glass-card p-6">
@@ -52,10 +58,27 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                {% if provider.provider_type == 'deepseek' %}
+                    <span class="badge" style="background:rgba(99,102,241,0.15); color:var(--accent-cyan); border:1px solid rgba(99,102,241,0.3);">⚡ FAST TIER</span>
+                {% elif provider.provider_type == 'gemini' %}
+                    <span class="badge" style="background:rgba(167,139,250,0.15); color:var(--accent-purple); border:1px solid rgba(167,139,250,0.3);">🧠 ADVANCED TIER</span>
+                {% endif %}
                 {% if provider.is_default %}<span class="badge badge-cached">Default</span>{% endif %}
                 {% if provider.is_active %}<span class="badge badge-success">Active</span>
                 {% else %}<span class="badge badge-revoked">Disabled</span>{% endif %}
             </div>
+        </div>
+
+        <!-- Role Description -->
+        <div class="mb-4">
+            <p class="text-[10px] uppercase font-bold tracking-tighter mb-1" style="color:var(--text-muted);">Assigned Responsibilities</p>
+            {% if provider.provider_type == 'deepseek' %}
+            <p class="text-xs" style="color:var(--text-secondary);">Handles micro-logic, syntax formatting, and rapid NEX transpilation for high-frequency payloads.</p>
+            {% elif provider.provider_type == 'gemini' %}
+            <p class="text-xs" style="color:var(--text-secondary);">Orchestrates multi-modal context, complex refactors, and aggressive semantic compression of large datasets.</p>
+            {% else %}
+            <p class="text-xs" style="color:var(--text-secondary);">General purpose AI agent for standard gate operations.</p>
+            {% endif %}
         </div>
 
         <div class="space-y-2 text-sm mb-4">

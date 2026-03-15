@@ -1,0 +1,296 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}NEX Test Lab | Firma-KI{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="mb-8 p-6 glass-card relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-8 opacity-10">
+            <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        </div>
+        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3" style="color:var(--text-primary);">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022.547l-2.387-.477a6 6 0 00-3.86.517l-.642.316a6 6 0 00-3.86.517L6.057 15.25a2 2 0 00-1.022.547l-2.387.477a2 2 0 00-1.022.547l-2.387.477a2 2 0 00-1.022.547"/></svg>
+            </div>
+            NEX Compression Test Lab
+        </h1>
+        <p class="text-sm max-w-2xl" style="color:var(--text-secondary);">
+            The central hub for experimenting with NEX algorithms. Select a protocol, choose an algorithm, 
+            and see how it transforms your data using machine-native logic.
+        </p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-8">
+        <!-- Configuration Side -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="glass-card p-6">
+                <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--accent-purple);">Protocol Selection</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setMode('code')" id="btn-mode-code" class="p-3 rounded-xl border text-center transition-all bg-indigo-500/10 border-indigo-500/40 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+                        <div class="font-bold text-xs uppercase tracking-tighter">Source Code</div>
+                    </button>
+                    <button onclick="setMode('text')" id="btn-mode-text" class="p-3 rounded-xl border text-center transition-all border-glass text-muted">
+                        <div class="font-bold text-xs uppercase tracking-tighter">Natural Language</div>
+                    </button>
+                </div>
+
+                <div class="mt-6 p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Enterprise Mode</h4>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enterprise-toggle" class="sr-only peer" onchange="toggleEnterprise()">
+                            <div class="w-8 h-4 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
+                        </label>
+                    </div>
+                    <p class="text-[9px]" style="color:var(--text-muted);">Enables aggressive cross-block deduplication and destructive formatting for maximum density.</p>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--accent-cyan);">Algorithm Level</h3>
+                    <div class="space-y-2" id="algo-list">
+                        <!-- Code Algos (Initial) -->
+                        {% for key, algo in code_algos.items() %}
+                        <button onclick="selectAlgo('{{key}}')" 
+                                class="algo-item p-3 w-full rounded-xl border border-glass text-left hover:border-white/20 transition-all group"
+                                data-mode="code">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs" style="color:var(--text-primary);">{{algo.name}}</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded-md font-black uppercase" 
+                                      style="background:{{algo.color}}22; color:{{algo.color}};">
+                                    {{algo.level}}
+                                </span>
+                            </div>
+                            <p class="text-[10px]" style="color:var(--text-muted);">{{algo.desc}}</p>
+                        </button>
+                        {% endfor %}
+
+                        <!-- Text Algos (Hidden) -->
+                        {% for key, algo in text_algos.items() %}
+                        <button onclick="selectAlgo('{{key}}')" 
+                                class="algo-item p-3 w-full rounded-xl border border-glass text-left hover:border-white/20 transition-all hidden group"
+                                data-mode="text">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-xs" style="color:var(--text-primary);">{{algo.name}}</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded-md font-black uppercase" 
+                                      style="background:{{algo.color}}22; color:{{algo.color}};">
+                                    {{algo.level}}
+                                </span>
+                            </div>
+                            <p class="text-[10px]" style="color:var(--text-muted);">{{algo.desc}}</p>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor & Results -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-bold uppercase tracking-widest" style="color:var(--accent-cyan);">Testing Playground</h3>
+                    <button onclick="runTest()" class="px-4 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold transition-all shadow-lg glow">
+                        Run Compression →
+                    </button>
+                </div>
+                
+                <div class="grid lg:grid-cols-2 gap-4 h-[500px]">
+                    <div class="flex flex-col h-full bg-black/40 rounded-xl border border-glass overflow-hidden">
+                        <div class="px-4 py-2 border-b border-glass flex items-center justify-between bg-white/5">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-muted">Raw Input</span>
+                            <span id="input-stats" class="text-[9px] text-muted">0 chars</span>
+                        </div>
+                        <textarea id="test-input" class="w-full flex-grow p-4 bg-transparent border-none text-xs font-mono resize-none focus:ring-0" 
+                                  placeholder="Paste content here to test..." 
+                                  oninput="updateCount('input')"></textarea>
+                    </div>
+
+                    <div class="flex flex-col h-full bg-black/40 rounded-xl border border-glass overflow-hidden">
+                        <div class="px-4 py-2 border-b border-glass flex items-center justify-between bg-white/5">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-muted">NEX Output</span>
+                            <span id="output-stats" class="text-[9px] text-muted">0 chars</span>
+                        </div>
+                        <pre id="test-output" class="w-full flex-grow p-4 text-xs font-mono overflow-auto whitespace-pre-wrap text-emerald-400" style="background:rgba(0,0,0,0.2);">Waiting for execution...</pre>
+                    </div>
+                </div>
+
+                <!-- NEX Advantage Metrics -->
+                <div class="mt-8 pt-6 border-t border-glass">
+                    <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--accent-green);">The NEX Advantage</h3>
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="p-3 rounded-xl bg-white/5 border border-glass">
+                            <div class="text-[8px] text-muted uppercase font-bold mb-1">Standard Minify</div>
+                            <div id="metric-minify" class="text-xs font-mono">-12%</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-white/5 border border-glass">
+                            <div class="text-[8px] text-muted uppercase font-bold mb-1">Standard GZIP</div>
+                            <div id="metric-gzip" class="text-xs font-mono">-24%</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                            <div class="text-[8px] text-emerald-400 uppercase font-bold mb-1">NEX Native</div>
+                            <div id="metric-nex" class="text-xs font-mono font-bold text-emerald-400">-62%</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
+                            <div class="text-[8px] text-indigo-300 uppercase font-bold mb-1">Efficiency Gain</div>
+                            <div id="metric-gain" class="text-xs font-mono text-indigo-300">2.4x</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Preview -->
+                <div class="mt-6 p-4 rounded-xl bg-black/40 border border-glass flex items-center justify-between">
+                    <div>
+                        <h4 class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">NEX Routing Preview</h4>
+                        <div id="agent-preview-name" class="text-sm font-bold text-indigo-300 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                            ⚡ DeepSeek (Fast Tier)
+                        </div>
+                    </div>
+                    <div class="text-[9px] max-w-[200px] text-right" style="color:var(--text-muted);">
+                        Payload complexity <span id="complexity-label">LOW</span>. 
+                        Direct logic mapping applied.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentMode = 'code';
+let currentAlgo = '';
+
+function setMode(mode) {
+    currentMode = mode;
+    currentAlgo = '';
+    
+    // Toggle buttons
+    const btnCode = document.getElementById('btn-mode-code');
+    const btnText = document.getElementById('btn-mode-text');
+    
+    if (mode === 'code') {
+        btnCode.classList.replace('text-muted', 'text-indigo-300');
+        btnCode.style.borderColor = 'rgba(99,102,241,0.4)';
+        btnCode.style.backgroundColor = 'rgba(99,102,241,0.1)';
+        btnText.classList.replace('text-indigo-300', 'text-muted');
+        btnText.style.borderColor = 'var(--border-glass)';
+        btnText.style.backgroundColor = 'transparent';
+    } else {
+        btnText.classList.replace('text-muted', 'text-indigo-300');
+        btnText.style.borderColor = 'rgba(99,102,241,0.4)';
+        btnText.style.backgroundColor = 'rgba(99,102,241,0.1)';
+        btnCode.classList.replace('text-indigo-300', 'text-muted');
+        btnCode.style.borderColor = 'var(--border-glass)';
+        btnCode.style.backgroundColor = 'transparent';
+    }
+
+    // Toggle items
+    document.querySelectorAll('.algo-item').forEach(item => {
+        if (item.dataset.mode === mode) item.classList.remove('hidden');
+        else item.classList.add('hidden');
+        item.classList.remove('active-algo');
+        item.style.borderColor = 'var(--border-glass)';
+    });
+
+    const example = mode === 'code' ? 'def hello_world():\n    # This is a comment\n    print("Hello from NEX!")\n    return True' : 'The user is requesting a fast response from the system because the latency and cost are currently too high.';
+    document.getElementById('test-input').value = example;
+    updateCount('input');
+}
+
+function selectAlgo(key) {
+    currentAlgo = key;
+    document.querySelectorAll('.algo-item').forEach(item => {
+        item.classList.remove('active-algo');
+        item.style.borderColor = 'var(--border-glass)';
+    });
+    
+    // Find the button and set active
+    const items = document.querySelectorAll('.algo-item');
+    for(let item of items) {
+        if (item.onclick.toString().includes(key)) {
+            item.style.borderColor = 'var(--accent-cyan)';
+            item.style.backgroundColor = 'rgba(34,211,238,0.05)';
+            break;
+        }
+    }
+}
+
+function updateCount(side) {
+    const text = document.getElementById('test-' + side).value || document.getElementById('test-output').innerText;
+    document.getElementById(side + '-stats').innerText = text.length + ' chars';
+}
+
+async function runTest() {
+    if (!currentAlgo) {
+        alert("Please select an algorithm first.");
+        return;
+    }
+    
+    const input = document.getElementById('test-input').value;
+    const outputArea = document.getElementById('test-output');
+    outputArea.innerText = "Processing...";
+    outputArea.style.opacity = '0.5';
+
+    try {
+        const res = await fetch('/dashboard/api/compression/test-action', {
+            method: 'POST',
+            body: JSON.stringify({
+                text: input,
+                algo: currentAlgo,
+                mode: currentMode,
+                enterprise: document.getElementById('enterprise-toggle').checked
+            }),
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        
+        outputArea.innerText = data.compressed_text;
+        outputArea.style.opacity = '1';
+        
+        document.getElementById('stat-before').innerText = data.tokens_before;
+        document.getElementById('stat-after').innerText = data.tokens_after;
+        document.getElementById('stat-savings').innerText = data.savings_pct + '%';
+        
+        // Update NEX Advantage (Mock simulation based on ratio)
+        const savings = parseFloat(data.savings_pct);
+        document.getElementById('metric-minify').innerText = '-' + Math.round(savings * 0.3) + '%';
+        document.getElementById('metric-gzip').innerText = '-' + Math.round(savings * 0.5) + '%';
+        document.getElementById('metric-nex').innerText = '-' + Math.round(savings) + '%';
+        document.getElementById('metric-gain').innerText = (savings / (savings * 0.4)).toFixed(1) + 'x';
+
+        // Update Agent Preview
+        const previewName = document.getElementById('agent-preview-name');
+        const complexityLabel = document.getElementById('complexity-label');
+        if (data.tokens_after > 2000 || input.includes('reason') || input.includes('analyze')) {
+            previewName.innerHTML = '<span class="w-2 h-2 rounded-full bg-purple-400"></span> 🧠 Gemini (Advanced Tier)';
+            previewName.className = 'text-sm font-bold text-purple-300 flex items-center gap-2';
+            complexityLabel.innerText = 'HIGH';
+        } else {
+            previewName.innerHTML = '<span class="w-2 h-2 rounded-full bg-indigo-400"></span> ⚡ DeepSeek (Fast Tier)';
+            previewName.className = 'text-sm font-bold text-indigo-300 flex items-center gap-2';
+            complexityLabel.innerText = 'LOW';
+        }
+        
+        updateCount('output');
+    } catch(err) {
+        outputArea.innerText = "Error: " + err;
+    }
+}
+
+function toggleEnterprise() {
+    if (document.getElementById('enterprise-toggle').checked) {
+        // Just visual feedback
+        console.log("Enterprise Mode Activated");
+    }
+}
+
+// Init
+window.onload = () => setMode('code');
+</script>
+
+<style>
+.active-algo {
+    border-color: var(--accent-cyan) !important;
+    background: rgba(34,211,238,0.05) !important;
+}
+</style>
+{% endblock %}

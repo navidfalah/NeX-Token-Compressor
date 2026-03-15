@@ -23,26 +23,62 @@
         <div class="glass-card p-5 mb-6">
             <div class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:var(--accent-cyan);">INPUT SIDE — Compress Before Sending to AI</div>
             <p class="text-xs mb-4" style="color:var(--text-muted);">Goal: maximum token reduction while keeping 95%+ of actionable information. Only the semantic content matters — filler, redundancy, and hedges are noise.</p>
-            <div class="grid md:grid-cols-3 lg:grid-cols-5 gap-3" id="input-algo-btns">
-                <button onclick="selectAlgo('input','nex_s1',this)" class="algo-btn input-active p-3 rounded-xl border text-left" style="border-color:rgba(99,102,241,0.4); background:rgba(99,102,241,0.08);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">NEX S1</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Signal-keyword density filter</div>
+            <div class="grid md:grid-cols-4 gap-3 mt-4" id="input-algo-btns">
+                <!-- Level 🟢 LIGHT -->
+                <button onclick="selectAlgo('input','hedge',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Hedge Word Remover</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-black">LIGHT</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Strip "I think", "maybe" hedges</div>
                 </button>
-                <button onclick="selectAlgo('input','tfidf',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">TF-IDF Extract</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Top 40% by term importance</div>
-                </button>
-                <button onclick="selectAlgo('input','stopword',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Stop-word Prune</div>
+                <button onclick="selectAlgo('input','stopword',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Stop-Word Prune</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-black">LIGHT</span>
+                    </div>
                     <div class="text-[9px]" style="color:var(--text-muted);">Remove grammatical fillers</div>
                 </button>
-                <button onclick="selectAlgo('input','redundancy',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Redundancy Eliminate</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">Drop >70% Jaccard overlaps</div>
+
+                <!-- Level 🟡 MEDIUM -->
+                <button onclick="selectAlgo('input','semantic',this)" class="algo-btn input-active p-3 rounded-xl border text-left border-glass bg-white/5" style="border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.06);">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">NEX Semantic Filter</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 font-black">MEDIUM</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Keep high-signal sentences</div>
                 </button>
-                <button onclick="selectAlgo('input','chunk',this)" class="algo-btn p-3 rounded-xl border text-left" style="border-color:var(--border-glass);">
-                    <div class="font-bold text-xs mb-0.5" style="color:var(--text-primary);">Chunk Summarize</div>
-                    <div class="text-[9px]" style="color:var(--text-muted);">First 2 sentences per 150-word block</div>
+                <button onclick="selectAlgo('input','tfidf',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">TF-IDF Extractor</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 font-black">MEDIUM</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Statistical term importance</div>
+                </button>
+
+                <!-- Level 🟠 AGGRESSIVE -->
+                <button onclick="selectAlgo('input','entities',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Entity Tracker</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 font-black">AGGRESSIVE</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Drop sentences without Name/Num</div>
+                </button>
+                <button onclick="selectAlgo('input','chunking',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px]" style="color:#f1f5f9;">Chunk Summarizer</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 font-black">AGGRESSIVE</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Recursive structural compaction</div>
+                </button>
+
+                <!-- Level 🔴 EXTREME -->
+                <button onclick="selectAlgo('input','bytecode',this)" class="algo-btn p-3 rounded-xl border text-left border-glass bg-white/5">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold text-[10px] text-red-300">NEX NL-Bytecode</span>
+                        <span class="text-[8px] px-1 py-0.5 rounded bg-red-500/20 text-red-500 font-black">EXTREME</span>
+                    </div>
+                    <div class="text-[9px]" style="color:var(--text-muted);">Convert NL to pseudo-bytecode</div>
                 </button>
             </div>
             <div class="mt-4 grid md:grid-cols-3 lg:grid-cols-5 gap-3 text-[9px]" style="color:var(--text-muted);">

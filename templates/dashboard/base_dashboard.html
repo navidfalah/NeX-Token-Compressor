@@ -4,23 +4,31 @@
 <!-- Sidebar -->
 <aside class="sidebar">
     <!-- Logo -->
-    <div class="p-5 border-b" style="border-color:var(--border-glass);">
-        <a href="{{ url_for('landing') }}" class="flex items-center gap-3" style="text-decoration:none;">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center"
+    <div class="p-4 border-b" style="border-color:var(--border-glass);">
+        <a href="{{ url_for('landing') }}" class="flex items-center gap-2.5" style="text-decoration:none;">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                 style="background:var(--gradient-primary);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style="color:var(--text-inverse);">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    style="color:#050d1a;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                         d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
             <div>
-                <span class="font-bold text-sm" style="color:var(--cream);">Firma-KI</span>
-                <span class="block text-xs" style="color:rgba(232,226,219,0.5);">
+                <span class="font-bold text-sm" style="color:#f1f5f9;">Firma-KI <span class="font-black" style="color:var(--accent-cyan);">NEX</span></span>
+                <span class="block text-[10px]" style="color:var(--text-muted);">
                     {{ user.organization.name if user and user.organization else "Dashboard" }}
                 </span>
             </div>
         </a>
+        <!-- NEX Pipeline indicator -->
+        <div class="flex items-center gap-1 mt-3 flex-wrap">
+            <span class="nex-stage-pill nex-stage-1">S1 Compress</span>
+            <span style="color:var(--text-muted); font-size:9px;">→</span>
+            <span class="nex-stage-pill nex-stage-2">S2 AI</span>
+            <span style="color:var(--text-muted); font-size:9px;">→</span>
+            <span class="nex-stage-pill nex-stage-3">S3 Expand</span>
+        </div>
     </div>
 
     <!-- Nav Links -->
@@ -32,6 +40,11 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             Overview
         </a>
+        <a href="/dashboard/compression/test-lab"
+            class="sidebar-link {% if '/compression/test-lab' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-purple);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.642.316a6 6 0 00-3.86.517L6.057 15.25a2 2 0 00-1.022.547l-2.387.477a2 2 0 00-1.022.547l-2.387.477a2 2 0 00-1.022.547"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            NEX Test Lab
+        </a>
 
         <!-- ═══════════════════════════════════════════════════════════════════ -->
         <!-- INPUT GATE                                                         -->
@@ -41,8 +54,9 @@
                 class="w-full flex items-center justify-between group"
                 style="cursor:pointer; background:none; border:none; padding:0;">
                 <div class="flex items-center gap-2">
-                    <div class="w-1.5 h-1.5 rounded-full" style="background:var(--accent-cyan);"></div>
-                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-cyan);">← Input Gate</span>
+                    <!-- Funnel icon: items go in, get filtered -->
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-cyan);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-cyan);">Input Gate</span>
                 </div>
                 <svg id="gate-input-chevron" class="w-3 h-3 transition-transform" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
@@ -64,21 +78,6 @@
                 Text Compression
             </a>
 
-            <!-- Sub: Privacy -->
-            <div class="px-5 mt-3 mb-1">
-                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">PII & Privacy</span>
-            </div>
-            <a href="{{ url_for('dashboard_privacy') }}"
-                class="sidebar-link sidebar-sub {% if '/privacy' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                Privacy Hub
-            </a>
-            <a href="{{ url_for('dashboard_masked_documents_list') }}"
-                class="sidebar-link sidebar-sub {% if '/documents' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                Masked Documents
-            </a>
-
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -89,8 +88,9 @@
                 class="w-full flex items-center justify-between group"
                 style="cursor:pointer; background:none; border:none; padding:0;">
                 <div class="flex items-center gap-2">
-                    <div class="w-1.5 h-1.5 rounded-full" style="background:var(--accent-amber);"></div>
-                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-amber);">Output Gate →</span>
+                    <!-- Share/send arrow: processed data exits -->
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-amber);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-amber);">Output Gate</span>
                 </div>
                 <svg id="gate-output-chevron" class="w-3 h-3 transition-transform" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
@@ -105,6 +105,26 @@
                 class="sidebar-link sidebar-sub {% if '/cascade' in request.url.path %}active{% endif %}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 Cascade Routing
+            </a>
+
+            <!-- Sub: Response Processing -->
+            <div class="px-5 mt-3 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Response Processing</span>
+            </div>
+            <a href="{{ url_for('dashboard_schema_standardization') }}"
+                class="sidebar-link sidebar-sub {% if '/output/schema' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                Schema Standard.
+            </a>
+            <a href="{{ url_for('dashboard_telemetry_headers') }}"
+                class="sidebar-link sidebar-sub {% if '/output/telemetry' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                Telemetry Headers
+            </a>
+            <a href="{{ url_for('dashboard_stream_normalization') }}"
+                class="sidebar-link sidebar-sub {% if '/output/stream' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Stream Normal.
             </a>
 
             <!-- Sub: Providers & Keys -->
@@ -139,6 +159,7 @@
 
         </div>
 
+
         <!-- ── ANALYTICS ─────────────────────────────────────────────────────── -->
         <div class="px-4 mt-5 mb-1">
             <span class="text-[10px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Analytics</span>
@@ -152,11 +173,6 @@
             class="sidebar-link {% if '/analytics' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             API Analytics
-        </a>
-        <a href="{{ url_for('dashboard_security_audit') }}"
-            class="sidebar-link {% if '/audit' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            Security Audit
         </a>
 
         <!-- ── ADMIN ─────────────────────────────────────────────────────────── -->

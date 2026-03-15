@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV=/home/navid/Desktop/firmaki/venv
+VIRTUAL_ENV=/home/navid/Desktop/firmaki/FirmaKI-Nex/venv
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

@@ -30,7 +30,7 @@
 
         <!-- Form -->
         <form method="POST" class="space-y-5 relative z-10">
-            {% csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
 
             {% if form.non_field_errors %}
             <div class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -73,7 +73,7 @@
         <!-- Footer -->
         <div class="mt-8 pt-6 text-center text-sm border-t"
             style="border-color: var(--border-glass); color: var(--text-muted);">
-            <a href="{% url 'dashboard:home' %}" class="font-medium hover:text-white transition-colors"
+            <a href="{{ url_for('dashboard_home') }}" class="font-medium hover:text-white transition-colors"
                 style="color: var(--accent-steel);">
                 &larr; Back to Dashboard
             </a>

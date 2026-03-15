@@ -1,5 +1,4 @@
-{% extends 'dashboard/base_dashboard.html' %}
-{% load dashboard_tags %}
+{% extends "dashboard/base_dashboard.html" %}
 {% block title %}Security Audit & Config - Firma-KI{% endblock %}
 
 {% block dashboard_content %}
@@ -49,8 +48,8 @@
                     {% endif %}
                 </div>
 
-                <form method="POST" action="{% url 'dashboard:security_audit' %}" class="space-y-4 relative z-10">
-                    {% csrf_token %}
+                <form method="POST" action="{{ url_for('dashboard_security_audit') }}" class="space-y-4 relative z-10">
+                    <input type="hidden" name="csrf_token" value="">
                     <input type="hidden" name="action" value="update_security_config">
                     <input type="hidden" name="key_id" value="{{ key.id }}">
 
@@ -59,8 +58,7 @@
                             <div class="relative flex items-center bg-gray-800 rounded-full h-5 w-9 transition-colors border"
                                 style="border-color:var(--border-glass);">
                                 <!-- prettier-ignore -->
-                                <input type="checkbox" name="enable_pii_masking" class="sr-only peer" {{
-                                    key.enable_pii_masking|yesno:"checked," }}>
+                                <input type="checkbox" name="enable_pii_masking" class="sr-only peer" {{ 'checked' if key.enable_pii_masking else '' }}>
                                 <div
                                     class="w-full h-full rounded-full transition-colors peer-checked:bg-[var(--accent-green)]/30">
                                 </div>
@@ -76,8 +74,7 @@
                             <div class="relative flex items-center bg-gray-800 rounded-full h-5 w-9 transition-colors border"
                                 style="border-color:var(--border-glass);">
                                 <!-- prettier-ignore -->
-                                <input type="checkbox" name="enable_compression" class="sr-only peer" {{
-                                    key.enable_compression|yesno:"checked," }}>
+                                <input type="checkbox" name="enable_compression" class="sr-only peer" {{ 'checked' if key.enable_compression else '' }}>
                                 <div
                                     class="w-full h-full rounded-full transition-colors peer-checked:bg-[var(--accent-amber)]/30">
                                 </div>
@@ -97,7 +94,7 @@
                     </button>
                 </form>
             </div>
-            {% empty %}
+            {% else %}
             <div class="p-4 rounded-xl border border-dashed text-center"
                 style="border-color:var(--border-glass); color:var(--text-muted);">
                 No API keys found.
@@ -122,11 +119,11 @@
                                 <th class="px-4 py-4 font-semibold tracking-wider w-1/4">Data Removed (GDPR)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y" style="divide-color:var(--border-glass);">
+                        <tbody class="divide-y" style="border-color:var(--border-glass);">
                             {% for log in logs %}
                             <tr class="hover:bg-black/10 transition-colors">
                                 <td class="px-4 py-4 whitespace-nowrap" style="color:var(--text-secondary);">
-                                    {{ log.timestamp|date:"M d, H:i:s" }}
+                                    {{ log.timestamp|strftime("%b %d, %H:%M:%S") }}
                                 </td>
                                 <td class="px-4 py-4">
                                     <div class="font-medium" style="color:var(--cream);">{{ log.source_label }}</div>
@@ -167,9 +164,9 @@
                                     {% endif %}
                                 </td>
                             </tr>
-                            {% empty %}
+                            {% else %}
                             <tr>
-                                <td colspan="4" class="px-6 py-12 text-center text-sm" style="color:var(--text-muted);">
+                                <td colspan="5" class="px-6 py-12 text-center text-sm" style="color:var(--text-muted);">
                                     <svg class="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

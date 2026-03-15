@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}API Keys{% endblock %}
 
 {% block dashboard_content %}
@@ -19,9 +18,8 @@
 </div>
 
 <!-- Banner -->
-{% if messages %}
-{% for message in messages %}
-{% if 'new_api_key' in message.tags %}
+<!-- Banner -->
+{% if success_message %}
 <div class="glass-card mb-8 p-6 glow"
     style="background:linear-gradient(135deg, rgba(74,222,128,0.1), rgba(26,50,99,0.2)); border-color:rgba(74,222,128,0.3);">
     <div class="flex items-start gap-4">
@@ -41,7 +39,7 @@
             <div class="flex items-center gap-2 p-3 rounded-lg"
                 style="background:var(--code-bg); border:1px solid var(--border-glass);">
                 <code id="newKey" class="text-sm flex-1 font-mono tracking-wider break-all"
-                    style="color:var(--accent-amber);">{{ message.message }}</code>
+                    style="color:var(--accent-amber);">{{ success_message }}</code>
                 <button onclick="copyKey()" class="p-2 transition-colors rounded hover:bg-white/10"
                     style="color:var(--text-muted);" title="Copy to clipboard">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,8 +53,6 @@
         </div>
     </div>
 </div>
-{% endif %}
-{% endfor %}
 {% endif %}
 
 <!-- Keys List -->
@@ -74,29 +70,25 @@
                     </svg>
                 </div>
                 <div>
-                    {% with name=key.name|default:"Unnamed Key" %}
-                    <h3 class="font-bold text-base" style="color:var(--text-primary);">{{ name }}</h3>
-                    {% endwith %}
+                <div>
+                    <h3 class="font-bold text-base" style="color:var(--text-primary);">{{ key.name or "Unnamed Key" }}</h3>
 
                     <div class="flex items-center gap-2 mt-1">
-                        {% with masked=key.masked_key|default:"—" %}
                         <code class="text-xs font-mono" style="color:var(--text-muted);"
-                            id="key-{{ key.id }}">{{ masked }}</code>
-                        {% endwith %}
+                            id="key-{{ key.id }}">{{ key.masked_key or "—" }}</code>
 
-                        {% with raw_key=key.key %}
                         <button type="button"
                             class="text-xs flex items-center gap-1 hover:text-white transition-colors p-1 rounded"
                             style="color:var(--text-muted); background:var(--bg-glass); border:1px solid var(--border-glass);"
-                            onclick="copyExistingKey('{{ raw_key }}', this)">
+                            onclick="copyExistingKey('{{ key.key }}', this)">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
                             Copy
                         </button>
-                        {% endwith %}
                     </div>
+                </div>
                 </div>
             </div>
             <div>
@@ -112,9 +104,7 @@
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Linked Provider
                 </div>
-                {% with p_name=key.default_provider.name|default:"Any provider" %}
-                <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ p_name }}</div>
-                {% endwith %}
+                <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ key.default_provider.name if key.default_provider else "Any provider" }}</div>
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Rate Limit</div>
@@ -129,13 +119,11 @@
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Created</div>
-                <div class="text-sm" style="color:var(--text-secondary);">{{ key.created_at|date:"M d, Y" }}</div>
+                <div class="text-sm" style="color:var(--text-secondary);">{{ key.created_at|strftime("%b %d, %Y") }}</div>
             </div>
             <div class="p-3 rounded-xl" style="background:var(--bg-glass); border:1px solid var(--border-glass);">
                 <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--text-muted);">Last Used</div>
-                {% with lu=key.last_used_at|timesince_short|default:"Never" %}
-                <div class="text-sm" style="color:var(--text-secondary);">{{ lu }}</div>
-                {% endwith %}
+                <div class="text-sm" style="color:var(--text-secondary);">{{ key.last_used_at|timesince_short if key.last_used_at else "Never" }}</div>
             </div>
         </div>
 
@@ -164,7 +152,7 @@
         <div class="flex justify-end">
             <form method="post" class="inline"
                 onsubmit="return confirm('Revoking a key cannot be undone. Any applications using it will lose access immediately. Proceed?')">
-                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
                 <input type="hidden" name="action" value="revoke">
                 <input type="hidden" name="key_id" value="{{ key.id }}">
                 <button type="submit" class="text-xs font-semibold px-3 py-1.5 transition-colors rounded-lg"
@@ -175,7 +163,7 @@
         </div>
         {% endif %}
     </div>
-    {% empty %}
+    {% else %}
     <div class="glass-card p-16 text-center">
         <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
             style="background:var(--bg-glass);">
@@ -199,7 +187,7 @@
     <div class="glass-card p-8 w-full max-w-md glow">
         <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Generate API Key</h3>
         <form method="post" class="space-y-5">
-            {% csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
             <input type="hidden" name="action" value="create">
 
             <div>
@@ -217,7 +205,7 @@
                     style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
                     <option value="">Any (Gateway routes based on rules)</option>
                     {% for p in providers %}
-                    <option value="{{ p.id }}">{{ p.name }} ({{ p.get_provider_type_display }})</option>
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.provider_type }})</option>
                     {% endfor %}
                 </select>
             </div>

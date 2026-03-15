@@ -1,12 +1,11 @@
 {% extends "base.html" %}
-{% load dashboard_tags %}
 
 {% block body %}
 <!-- Sidebar -->
 <aside class="sidebar">
     <!-- Logo -->
     <div class="p-5 border-b" style="border-color:var(--border-glass);">
-        <a href="{% url 'landing' %}" class="flex items-center gap-3" style="text-decoration:none;">
+        <a href="{{ url_for('landing') }}" class="flex items-center gap-3" style="text-decoration:none;">
             <div class="w-9 h-9 rounded-lg flex items-center justify-center"
                 style="background:var(--gradient-primary);">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -18,7 +17,7 @@
             <div>
                 <span class="font-bold text-sm" style="color:var(--cream);">Firma-KI</span>
                 <span class="block text-xs" style="color:rgba(232,226,219,0.5);">
-                    {{ request.organization.name|default:"Dashboard" }}
+                    {{ user.organization.name if user and user.organization else "Dashboard" }}
                 </span>
             </div>
         </a>
@@ -30,8 +29,8 @@
             <span class="text-xs font-semibold uppercase tracking-widest"
                 style="color:rgba(84,119,146,0.7);">Analytics</span>
         </div>
-        <a href="{% url 'dashboard:home' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_home') }}"
+            class="sidebar-link {% if request.url.path == '/dashboard/' %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -43,24 +42,24 @@
             <span class="text-xs font-semibold uppercase tracking-widest"
                 style="color:rgba(84,119,146,0.7);">Configuration</span>
         </div>
-        <a href="{% url 'dashboard:ai_providers' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'ai_providers' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_ai_providers') }}"
+            class="sidebar-link {% if 'providers' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             AI Providers
         </a>
-        <a href="{% url 'dashboard:api_keys' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'api_keys' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_api_key_list') }}"
+            class="sidebar-link {% if 'api-keys' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
             API Keys
         </a>
-        <a href="{% url 'dashboard:rules' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'rules' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_rules') }}"
+            class="sidebar-link {% if 'rules' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -70,8 +69,8 @@
             Compression Rules
         </a>
 
-        <a href="{% url 'dashboard:security_audit' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'security_audit' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_security_audit') }}"
+            class="sidebar-link {% if 'audit' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
@@ -85,16 +84,16 @@
                 style="color:rgba(84,119,146,0.7);">Tools</span>
         </div>
 
-        <a href="{% url 'dashboard:mcp_tools' %}"
-            class="sidebar-link {% if 'mcp_tools' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="#"
+            class="sidebar-link">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
             MCP Tools
         </a>
-        <a href="{% url 'dashboard:edge_nodes' %}"
-            class="sidebar-link {% if 'edge_nodes' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="#"
+            class="sidebar-link">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -106,8 +105,8 @@
             <span class="text-xs font-semibold uppercase tracking-widest"
                 style="color:rgba(84,119,146,0.7);">Monitoring</span>
         </div>
-        <a href="{% url 'dashboard:audit_list' %}"
-            class="sidebar-link {% if 'audit' in request.resolver_match.url_name %}active{% endif %}"
+        <a href="{{ url_for('dashboard_security_audit') }}"
+            class="sidebar-link"
             style="position:relative;">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -121,8 +120,8 @@
             </span>
             {% endif %}
         </a>
-        <a href="{% url 'dashboard:team' %}"
-            class="sidebar-link {% if request.resolver_match.url_name == 'team' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_team') }}"
+            class="sidebar-link {% if 'team' in request.url.path %}active{% endif %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -138,14 +137,14 @@
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
                 style="background:var(--gradient-primary); color:var(--text-inverse);">
-                {{ request.user.first_name.0 }}{{ request.user.last_name.0 }}
+                {{ user.first_name[0] }}{{ user.last_name[0] }}
             </div>
             <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold truncate" style="color:var(--cream);">
-                    {{ request.user.first_name }} {{ request.user.last_name }}
+                    {{ user.first_name }} {{ user.last_name }}
                 </div>
                 <div class="text-xs truncate" style="color:rgba(232,226,219,0.45);">
-                    {{ request.user.get_role_display }}
+                    {{ user.role }}
                 </div>
             </div>
             <!-- Theme toggle -->
@@ -159,7 +158,7 @@
                         d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
             </button>
-            <a href="{% url 'accounts:logout' %}" title="Sign out"
+            <a href="{{ url_for('accounts_logout') }}" title="Sign out"
                 class="transition-colors hover:opacity-100 opacity-50" style="color:var(--accent-red);">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

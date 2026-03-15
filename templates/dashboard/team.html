@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}Team & Access{% endblock %}
 
 {% block dashboard_content %}
@@ -30,14 +29,14 @@
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                             style="background:var(--gradient-primary);">
-                            {{ ms.user.first_name.0 }}{{ ms.user.last_name.0 }}
+                            {{ ms.user.first_name[0] if ms.user.first_name else '' }}{{ ms.user.last_name[0] if ms.user.last_name else '' }}
                         </div>
                         <div>
                             <div class="font-medium" style="color:var(--text-primary);">
                                 {{ ms.user.first_name|default:"—" }} {{ ms.user.last_name|default:"—" }}
                             </div>
                             <div class="text-xs" style="color:var(--text-muted);">
-                                @{{ ms.user.username|default:"—" }}
+                                @{{ ms.user.username or "—" }}
                             </div>
                         </div>
                     </div>
@@ -49,23 +48,23 @@
                     <span class="badge badge-success">User</span>
                     {% endif %}
                 </td>
-                <td class="text-sm" style="color:var(--text-secondary);">{{ ms.user.email|default_if_none:"—" }}</td>
+                <td class="text-sm" style="color:var(--text-secondary);">{{ ms.user.email or "—" }}</td>
                 <td class="text-center font-medium" style="color:var(--text-primary);">
                     {{ ms.active_keys|default:"0" }}
                 </td>
                 <td class="text-center font-medium" style="color:var(--text-primary);">
-                    {{ ms.requests|default:"0" }}
+                    {{ ms.requests or "0" }}
                 </td>
                 <td class="text-xs" style="color:var(--text-muted);">
-                    {{ ms.user.last_login|timesince_short|default:"Never" }}
+                    {{ ms.user.last_login|timesince_short if ms.user.last_login else "Never" }}
                 </td>
                 <td class="text-xs" style="color:var(--text-muted);">
-                    {{ ms.user.last_activity|timesince_short|default:"—" }}
+                    {{ ms.user.last_activity|timesince_short if ms.user.last_activity else "—" }}
                 </td>
                 <td>
-                    {% if ms.user != request.user %}
+                    {% if ms.user.id != user.id %}
                     <div class="flex gap-1">
-                        <form method="post" class="inline">{% csrf_token %}
+                        <form method="post" class="inline"><input type="hidden" name="csrf_token" value="">
                             <input type="hidden" name="action" value="change_role">
                             <input type="hidden" name="user_id" value="{{ ms.user.id }}">
                             {% if ms.user.role == 'user' %}
@@ -76,8 +75,7 @@
                             <button type="submit" class="btn-secondary text-xs px-2 py-1">→ User</button>
                             {% endif %}
                         </form>
-                        <form method="post" class="inline" onsubmit="return confirm('Deactivate this user?')">{%
-                            csrf_token %}
+                        <form method="post" class="inline" onsubmit="return confirm('Deactivate this user?')"><input type="hidden" name="csrf_token" value="">
                             <input type="hidden" name="action" value="remove_user">
                             <input type="hidden" name="user_id" value="{{ ms.user.id }}">
                             <button type="submit" class="btn-danger text-xs px-2 py-1">Remove</button>
@@ -115,7 +113,7 @@
                         {{ inv.email|default:"—" }}
                     </span>
                     <span class="text-xs ml-2" style="color:var(--text-muted);">
-                        Invited {{ inv.created_at|timesince_short|default:"Unknown" }}
+                        Invited {{ inv.created_at|timesince_short if inv.created_at else "Unknown" }}
                     </span>
                 </div>
             </div>
@@ -128,7 +126,7 @@
 
 <!-- Invite link -->
 <div class="mt-6">
-    <a href="{% url 'accounts:invite' %}" class="btn-gradient text-sm px-6 py-2.5 inline-flex items-center gap-2">
+    <a href="{{ url_for('accounts_invite') }}" class="btn-gradient text-sm px-6 py-2.5 inline-flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>

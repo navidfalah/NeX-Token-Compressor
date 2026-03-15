@@ -13,7 +13,7 @@
 
     <div class="w-full max-w-md relative z-10">
         <!-- Back -->
-        <a href="{% url 'landing' %}"
+        <a href="{{ url_for('landing') }}"
             class="inline-flex items-center gap-2 text-sm mb-8 transition-all hover:opacity-100 opacity-60"
             style="color:var(--accent-steel);">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +45,7 @@
             {% endif %}
 
             <form method="post" class="space-y-5">
-                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
                 <div>
                     <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Username</label>
                     {{ form.username }}
@@ -61,7 +61,7 @@
             </form>
 
             <p class="text-center text-sm mt-6" style="color:var(--text-muted);">
-                No account? <a href="{% url 'accounts:register' %}"
+                No account? <a href="{{ url_for('accounts_register') }}"
                     class="font-semibold transition-colors hover:opacity-100 opacity-80"
                     style="color:var(--accent-navy);">Register your organization</a>
             </p>

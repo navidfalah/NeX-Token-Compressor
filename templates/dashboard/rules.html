@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}Compression Rules{% endblock %}
 
 {% block dashboard_content %}
@@ -31,7 +30,7 @@
 
 <!-- Language Rules Tab -->
 <div id="panel-lang" class="tab-panel">
-    {% for lang_code, lang_rules in lang_groups.items %}
+    {% for lang_code, lang_rules in lang_groups.items() %}
     <div class="glass-card p-6 mb-4">
         <div class="flex items-center gap-3 mb-4">
             <span class="text-2xl">
@@ -46,7 +45,7 @@
                     {% else %}Spanish{% endif %} Compression
                 </h3>
                 <p class="text-xs" style="color:var(--text-muted);">
-                    {{ lang_rules.count|default_if_none:"0" }} built-in rules · System-managed
+                    {{ lang_rules|length }} built-in rules · System-managed
                 </p>
             </div>
         </div>
@@ -143,7 +142,7 @@
         </div>
     </div>
 
-    {% for prog_code, prog_rules in prog_groups.items %}
+    {% for prog_code, prog_rules in prog_groups.items() %}
     <div class="glass-card p-6 mb-4">
         <div class="flex items-center gap-3 mb-4">
             <span class="text-2xl">
@@ -155,7 +154,7 @@
                     {% elif prog_code == 'javascript' %}JavaScript
                     {% else %}SQL{% endif %} → NEX
                 </h3>
-                <p class="text-xs" style="color:var(--text-muted);">{{ prog_rules.count|default_if_none:"0" }} opcodes ·
+                <p class="text-xs" style="color:var(--text-muted);">{{ prog_rules|length }} opcodes ·
                     System-managed</p>
             </div>
         </div>
@@ -211,17 +210,17 @@
             <code class="text-sm px-3 py-1 rounded"
                 style="background:rgba(74,222,128,0.08); color:var(--accent-green);">{{ rule.replacement }}</code>
             {% if rule.description %}
-            <span class="text-xs" style="color:var(--text-muted);">{{ rule.description|default_if_none:"—" }}</span>
+            <span class="text-xs" style="color:var(--text-muted);">{{ rule.description or "—" }}</span>
             {% endif %}
         </div>
         <form method="post" class="inline" onsubmit="return confirm('Delete this rule?')">
-            {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="rule_id" value="{{ rule.id }}">
             <button type="submit" class="btn-danger text-xs px-3 py-1.5">Delete</button>
         </form>
     </div>
-    {% empty %}
+    {% else %}
     <div class="glass-card p-12 text-center">
         <p class="text-sm" style="color:var(--text-muted);">No custom rules yet. Add domain-specific shortcuts to
             further compress your prompts.</p>
@@ -234,7 +233,7 @@
     <div class="glass-card p-8 w-full max-w-md glow">
         <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Add Custom Rule</h3>
         <form method="post" class="space-y-4">
-            {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
             <input type="hidden" name="action" value="create">
             <div>
                 <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Verbose

@@ -29,10 +29,10 @@
         <!-- Auth Buttons -->
         <div class="flex items-center gap-3">
             {% if user.is_authenticated %}
-            <a href="{% url 'dashboard:home' %}" class="btn-gradient text-sm">Dashboard →</a>
+            <a href="{{ url_for('dashboard_home') }}" class="btn-gradient text-sm">Dashboard →</a>
             {% else %}
-            <a href="{% url 'accounts:login' %}" class="btn-secondary text-sm px-4 py-2">Log In</a>
-            <a href="{% url 'accounts:register' %}" class="btn-gradient text-sm px-4 py-2">Start Free →</a>
+            <a href="{{ url_for('accounts_login') }}" class="btn-secondary text-sm px-4 py-2">Log In</a>
+            <a href="{{ url_for('accounts_register') }}" class="btn-gradient text-sm px-4 py-2">Start Free →</a>
             {% endif %}
         </div>
     </div>
@@ -71,7 +71,7 @@
 
             <!-- CTA Buttons -->
             <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in animate-delay-3">
-                <a href="{% url 'accounts:register' %}"
+                <a href="{{ url_for('accounts_register') }}"
                     class="btn-gradient text-lg px-8 py-4 inline-flex items-center justify-center gap-2">
                     Start Free Trial
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -315,7 +315,7 @@
                 Costs</span>?</h2>
         <p class="text-lg text-slate-400 mb-10 max-w-2xl mx-auto">Join the European Mittelstand in building
             cost-efficient, privacy-first AI infrastructure. No credit card required.</p>
-        <a href="{% url 'accounts:register' %}" class="btn-gradient text-lg px-10 py-4 inline-flex items-center gap-2">
+        <a href="{{ url_for('accounts_register') }}" class="btn-gradient text-lg px-10 py-4 inline-flex items-center gap-2">
             Create Your Organization
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />

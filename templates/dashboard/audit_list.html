@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}Audit Logs{% endblock %}
 
 {% block dashboard_content %}
@@ -42,7 +41,7 @@
         </select>
         <button type="submit" class="btn-gradient text-sm px-5 py-2.5">Filter</button>
         {% if search or status_filter %}
-        <a href="{% url 'dashboard:audit_list' %}" class="text-sm transition-colors hover:opacity-100 opacity-60"
+        <a href="{{ url_for('dashboard_audit_list') }}" class="text-sm transition-colors hover:opacity-100 opacity-60"
             style="color:var(--text-muted);">Clear</a>
         {% endif %}
     </form>
@@ -69,16 +68,12 @@
             </thead>
             <tbody>
                 {% for log in logs %}
-                <tr class="cursor-pointer" onclick="window.location='{% url 'dashboard:audit_detail' log.id %}'">
+                <tr class="cursor-pointer" onclick="window.location='{{ url_for('dashboard_audit_detail', log_id=log.id) }}';">
                     <td class="text-xs font-mono" style="color:var(--text-muted);">
-                        {% with ts=log.timestamp|date:"Y-m-d H:i:s" %}
-                        {{ ts }}
-                        {% endwith %}
+                        {{ log.timestamp|strftime("%Y-%m-%d %H:%M:%S") }}
                     </td>
                     <td class="text-sm font-medium" style="color:var(--text-primary);">
-                        {% with uname=log.user.username|default:"API Key" %}
-                        {{ uname }}
-                        {% endwith %}
+                        {{ log.user.username if log.user else "API Key" }}
                     </td>
                     <td>
                         {% if log.source == 'gateway' %}
@@ -97,25 +92,17 @@
                         {% else %}<span class="badge badge-error">✗ Error</span>{% endif %}
                     </td>
                     <td class="font-mono text-sm" style="color:var(--text-secondary);">
-                        {% with tl=log.tokens_original|format_tokens %}
-                        {{ tl }}
-                        {% endwith %}
+                        {{ (log.tokens_original or 0)|format_tokens }}
                     </td>
                     <td class="font-mono text-sm" style="color:var(--accent-green);">
-                        {% with tc=log.tokens_compressed|format_tokens %}
-                        {{ tc }}
-                        {% endwith %}
+                        {{ (log.tokens_compressed or 0)|format_tokens }}
                     </td>
                     <td class="font-medium" style="color:var(--accent-amber);">{{ log.savings_percentage }}%</td>
                     <td class="font-medium" style="color:var(--accent-green);">
-                        {% with cost=log.cost_saved|format_cost %}
-                        {{ cost }}
-                        {% endwith %}
+                        {{ (log.cost_saved or 0)|format_cost }}
                     </td>
                     <td class="font-mono text-sm" style="color:var(--text-secondary);">
-                        {% with lat=log.latency_ms|format_latency %}
-                        {{ lat }}
-                        {% endwith %}
+                        {{ (log.latency_ms or 0)|format_latency }}
                     </td>
                     <td>
                         {% if log.cache_hit %}

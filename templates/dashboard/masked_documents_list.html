@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}Clean Files{% endblock %}
 
 {% block dashboard_content %}
@@ -42,7 +41,7 @@
             {% for document in documents %}
             <div class="glass-card p-5 cursor-pointer hover:-translate-y-1 transition-transform"
                 style="background:var(--bg-secondary);"
-                onclick="window.location.href='{% url 'dashboard:masked_document_chat' document.id %}'">
+                onclick="window.location.href='{{ url_for('dashboard_masked_document_chat', doc_id=document.id) }}';">
                 <div class="flex flex-col h-full">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
@@ -52,8 +51,8 @@
                                     {{ document.filename }}
                                 </h3>
                                 <p class="text-[11px] mt-1 flex items-center gap-1" style="color:var(--text-muted);">
-                                    {{ document.created_at|date:"M d, Y H:i" }} &bull;
-                                    {{ document.file_size|filesizeformat }}
+                                    {{ document.created_at|strftime("%b %d, %Y %H:%M") }} &bull;
+                                    {{ document.file_size|format_bytes }}
                                 </p>
                             </div>
                         </div>
@@ -63,18 +62,19 @@
                         <div class="text-[10px] mb-2 font-bold tracking-wider" style="color:var(--accent-amber);">MASKED
                             ENTITIES</div>
                         <div class="flex flex-wrap gap-1">
-                            {% for mapping in document.key_mappings.all|slice:":5" %}
+                            {% for mapping in document.key_mappings[:5] %}
                             <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border"
                                 style="background:rgba(84,119,146,0.1); border-color:var(--border-glass); color:var(--text-secondary);">
                                 {{ mapping.placeholder }}
                             </span>
-                            {% empty %}
+                            {% endfor %}
+                            {% if not document.key_mappings %}
                             <span class="text-xs italic" style="color:var(--text-muted);">No sensitive data
                                 detected.</span>
-                            {% endfor %}
-                            {% if document.key_mappings.count > 5 %}
+                            {% endif %}
+                            {% if (document.key_mappings|length) > 5 %}
                             <span class="text-[10px] font-bold" style="color:var(--text-muted);">
-                                +{{ document.key_mappings.count|add:"-5" }} more
+                                +{{ (document.key_mappings|length) - 5 }} more
                             </span>
                             {% endif %}
                         </div>
@@ -82,12 +82,12 @@
 
                     <div class="mt-4 pt-3 border-t flex items-center justify-between"
                         style="border-color:var(--border-glass);">
-                        <a href="{% url 'dashboard:masked_document_chat' document.id %}"
+                        <a href="{{ url_for('dashboard_masked_document_chat', doc_id=document.id) }}"
                             class="text-xs font-bold hover:underline" style="color:var(--accent-amber);">Open Chat
                             &rarr;</a>
 
                         <div class="flex items-center gap-1">
-                            <a href="{% url 'dashboard:masked_document_preview_text' document.id %}"
+                            <a href="{{ url_for('dashboard_masked_document_preview_text', doc_id=document.id) }}"
                                 class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
                                 style="color:var(--accent-steel);" title="Preview Clean Text">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +97,7 @@
                                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                             </a>
-                            <a href="{% url 'dashboard:masked_document_download_text' document.id %}"
+                            <a href="{{ url_for('dashboard_masked_document_download_text', doc_id=document.id) }}"
                                 class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
                                 style="color:var(--accent-green);" title="Download Clean Text">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@
                             </a>
 
                             {% if document.redacted_file %}
-                            <a href="{% url 'dashboard:masked_document_preview_pdf' document.id %}"
+                            <a href="{{ url_for('dashboard_masked_document_preview_pdf', doc_id=document.id) }}"
                                 class="p-1.5 rounded-lg transition-colors hover:bg-white/10 border"
                                 style="color:var(--text-primary); border-color:var(--accent-red);"
                                 title="Preview Redacted PDF">
@@ -116,7 +116,7 @@
                                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                             </a>
-                            <a href="{% url 'dashboard:masked_document_download_pdf' document.id %}"
+                            <a href="{{ url_for('dashboard_masked_document_download_pdf', doc_id=document.id) }}"
                                 class="p-1.5 rounded-lg transition-colors hover:bg-white/10 border"
                                 style="color:var(--text-primary); border-color:var(--accent-red);"
                                 title="Download Redacted PDF">
@@ -128,7 +128,7 @@
                             {% endif %}
                             <form method="post" class="inline"
                                 onsubmit="event.stopPropagation(); return confirm('Delete this file permanently?')">
-                                {% csrf_token %}
+                                <input type="hidden" name="csrf_token" value="">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="document_id" value="{{ document.id }}">
                                 <button type="submit" class="p-1.5 rounded-lg transition-colors hover:bg-white/10"
@@ -171,7 +171,7 @@
             with clean placeholders before hitting any external service.
         </p>
         <form method="post" enctype="multipart/form-data" class="space-y-5">
-            {% csrf_token %}
+            <input type="hidden" name="csrf_token" value="">
             <input type="hidden" name="action" value="upload">
             <div>
                 <div id="dropZone"

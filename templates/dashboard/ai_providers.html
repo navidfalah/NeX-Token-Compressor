@@ -1,5 +1,4 @@
 {% extends "dashboard/base_dashboard.html" %}
-{% load dashboard_tags %}
 {% block title %}AI Providers{% endblock %}
 
 {% block dashboard_content %}
@@ -43,16 +42,14 @@
                 <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm"
                     style="background:var(--gradient-primary);">?</div>
                 {% endif %}
-                {% with ttype=provider.get_provider_type_display|default:"—" %}
                 <div>
                     <h3 class="font-bold text-lg" style="color:var(--text-primary);">
-                        {{ provider.name|default:"Unnamed" }}
+                        {{ provider.name or "Unnamed" }}
                     </h3>
                     <p class="text-xs" style="color:var(--text-muted);">
-                        {{ ttype }}
+                        {{ provider.provider_type }}
                     </p>
                 </div>
-                {% endwith %}
             </div>
             <div class="flex items-center gap-2">
                 {% if provider.is_default %}<span class="badge badge-cached">Default</span>{% endif %}
@@ -65,7 +62,7 @@
             <div class="flex justify-between">
                 <span style="color:var(--text-muted);">Base URL</span>
                 <code class="text-xs px-2 py-0.5 rounded"
-                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.api_base_url|truncatechars:40 }}</code>
+                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.api_base_url[:40] }}</code>
             </div>
             <div class="flex justify-between">
                 <span style="color:var(--text-muted);">Model</span>
@@ -79,33 +76,31 @@
             <div class="flex justify-between">
                 <span style="color:var(--text-muted);">Webhook</span>
                 <code class="text-xs px-2 py-0.5 rounded"
-                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.output_webhook_url|truncatechars:30 }}</code>
+                    style="background:var(--code-bg); color:var(--text-secondary);">{{ provider.output_webhook_url[:30] if provider.output_webhook_url else "—" }}</code>
             </div>
             {% endif %}
         </div>
 
         <!-- Stats strip -->
-        {% with pt=provider.total_tokens_used pd=provider.total_data_bytes %}
         <div class="grid grid-cols-3 gap-3 p-3 rounded-xl mb-4"
             style="background:var(--bg-glass); border:1px solid var(--border-glass);">
             <div class="text-center">
-                <div class="text-lg font-bold gradient-text">{{ provider.total_requests|default:"0" }}</div>
+                <div class="text-lg font-bold gradient-text">{{ provider.total_requests or "0" }}</div>
                 <div class="text-xs" style="color:var(--text-muted);">Requests</div>
             </div>
             <div class="text-center">
                 <div class="text-lg font-bold" style="color:var(--accent-steel);">
-                    {{ pt|default:"0"|format_tokens }}
+                    {{ (provider.total_tokens_used or 0)|format_tokens }}
                 </div>
                 <div class="text-xs" style="color:var(--text-muted);">Tokens</div>
             </div>
             <div class="text-center">
                 <div class="text-lg font-bold" style="color:var(--text-secondary);">
-                    {{ pd|default:"0"|format_bytes }}
+                    {{ (provider.total_data_bytes or 0)|format_bytes }}
                 </div>
                 <div class="text-xs" style="color:var(--text-muted);">Data</div>
             </div>
         </div>
-        {% endwith %}
 
         <div class="flex gap-2">
             {% if provider.is_system %}
@@ -116,14 +111,14 @@
             <form method="post" class="inline">
                 <input type="hidden" name="action" value="set_default">
                 <input type="hidden" name="provider_id" value="{{ provider.id }}">
-                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
                 <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Set Default</button>
             </form>
             {% endif %}
             <form method="post" class="inline">
                 <input type="hidden" name="action" value="toggle">
                 <input type="hidden" name="provider_id" value="{{ provider.id }}">
-                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
                 <button type="submit" class="btn-secondary text-xs px-3 py-1.5">
                     {% if provider.is_active %}Disable{% else %}Enable{% endif %}
                 </button>
@@ -131,13 +126,13 @@
             <form method="post" class="inline" onsubmit="return confirm('Delete this provider?')">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="provider_id" value="{{ provider.id }}">
-                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="">
                 <button type="submit" class="btn-danger text-xs px-3 py-1.5">Delete</button>
             </form>
             {% endif %}
         </div>
     </div>
-    {% empty %}
+    {% else %}
     <div class="md:col-span-2 glass-card p-16 text-center">
         <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
             style="background:var(--bg-glass);">
@@ -161,7 +156,7 @@
     <div class="glass-card p-8 w-full max-w-lg glow" style="max-height:90vh; overflow-y:auto;">
         <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Add AI Provider</h3>
         <form method="post" class="space-y-4">
-            {% csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
             <input type="hidden" name="action" value="create">
             <div>
                 <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Display Name</label>

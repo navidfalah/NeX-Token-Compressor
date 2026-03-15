@@ -183,7 +183,7 @@
     <div class="glass-card p-8 w-full max-w-md glow">
         <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Generate API Key</h3>
         <form method="post" class="space-y-5">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
             <input type="hidden" name="action" value="create">
 
             <div>

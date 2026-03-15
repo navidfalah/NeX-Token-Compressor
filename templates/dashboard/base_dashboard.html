@@ -46,6 +46,21 @@
             NEX Test Lab
         </a>
 
+        <!-- ── INFRASTRUCTURE ────────────────────────────────────────────────── -->
+        <div class="px-4 mt-5 mb-1">
+            <span class="text-[10px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Infrastructure</span>
+        </div>
+        <a href="{{ url_for('dashboard_ai_providers') }}"
+            class="sidebar-link {% if 'providers' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-cyan);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            AI Providers
+        </a>
+        <a href="{{ url_for('dashboard_api_key_list') }}"
+            class="sidebar-link {% if 'api-keys' in request.url.path %}active{% endif %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-amber);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            API Keys
+        </a>
+
         <!-- ═══════════════════════════════════════════════════════════════════ -->
         <!-- INPUT GATE                                                         -->
         <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -78,6 +93,13 @@
                 Text Compression
             </a>
 
+            <!-- Sub: Routing -->
+            <a href="{{ url_for('dashboard_cascade') }}"
+                class="sidebar-link sidebar-sub {% if '/cascade' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Cascade Routing
+            </a>
+
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -88,7 +110,6 @@
                 class="w-full flex items-center justify-between group"
                 style="cursor:pointer; background:none; border:none; padding:0;">
                 <div class="flex items-center gap-2">
-                    <!-- Share/send arrow: processed data exits -->
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-amber);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                     <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-amber);">Output Gate</span>
                 </div>
@@ -96,17 +117,6 @@
             </button>
         </div>
         <div id="gate-output" class="sidebar-gate">
-
-            <!-- Sub: Routing -->
-            <div class="px-5 mt-2 mb-1">
-                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Routing</span>
-            </div>
-            <a href="{{ url_for('dashboard_cascade') }}"
-                class="sidebar-link sidebar-sub {% if '/cascade' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                Cascade Routing
-            </a>
-
             <!-- Sub: Response Processing -->
             <div class="px-5 mt-3 mb-1">
                 <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Response Processing</span>
@@ -116,64 +126,49 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                 Schema Standard.
             </a>
-            <a href="{{ url_for('dashboard_telemetry_headers') }}"
-                class="sidebar-link sidebar-sub {% if '/output/telemetry' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-                Telemetry Headers
-            </a>
             <a href="{{ url_for('dashboard_stream_normalization') }}"
                 class="sidebar-link sidebar-sub {% if '/output/stream' in request.url.path %}active{% endif %}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 Stream Normal.
             </a>
+        </div>
 
-            <!-- Sub: Providers & Keys -->
-            <div class="px-5 mt-3 mb-1">
-                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Providers & Keys</span>
-            </div>
-            <a href="{{ url_for('dashboard_ai_providers') }}"
-                class="sidebar-link sidebar-sub {% if 'providers' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                AI Providers
-            </a>
-            <a href="{{ url_for('dashboard_api_key_list') }}"
-                class="sidebar-link sidebar-sub {% if 'api-keys' in request.url.path %}active{% endif %}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                API Keys
-            </a>
-
-            <!-- Sub: Monitoring -->
-            <div class="px-5 mt-3 mb-1">
-                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Monitoring</span>
-            </div>
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- INTELLIGENCE MONITORING                                            -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div class="px-4 mt-5 mb-1">
+            <button onclick="toggleGate('gate-monitor')"
+                class="w-full flex items-center justify-between group"
+                style="cursor:pointer; background:none; border:none; padding:0;">
+                <div class="flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-purple);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-purple);">Intelligence Monitoring</span>
+                </div>
+                <svg id="gate-monitor-chevron" class="w-3 h-3 transition-transform" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        </div>
+        <div id="gate-monitor" class="sidebar-gate">
             <a href="{{ url_for('dashboard_pipeline_monitor') }}"
                 class="sidebar-link sidebar-sub {% if '/monitor' in request.url.path %}active{% endif %}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 Pipeline Monitor
+            </a>
+            <a href="{{ url_for('dashboard_telemetry') }}"
+                class="sidebar-link sidebar-sub {% if '/telemetry' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                Token Telemetry
+            </a>
+            <a href="{{ url_for('dashboard_analytics') }}"
+                class="sidebar-link sidebar-sub {% if '/analytics' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                API Analytics
             </a>
             <a href="{{ url_for('dashboard_playground') }}"
                 class="sidebar-link sidebar-sub {% if 'playground' in request.url.path %}active{% endif %}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Test Playground
             </a>
-
         </div>
-
-
-        <!-- ── ANALYTICS ─────────────────────────────────────────────────────── -->
-        <div class="px-4 mt-5 mb-1">
-            <span class="text-[10px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Analytics</span>
-        </div>
-        <a href="{{ url_for('dashboard_telemetry') }}"
-            class="sidebar-link {% if '/telemetry' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-            Token Telemetry
-        </a>
-        <a href="{{ url_for('dashboard_analytics') }}"
-            class="sidebar-link {% if '/analytics' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            API Analytics
-        </a>
 
         <!-- ── ADMIN ─────────────────────────────────────────────────────────── -->
         <div class="px-4 mt-5 mb-1">
@@ -202,7 +197,7 @@
     }
     // Restore state on load
     document.addEventListener('DOMContentLoaded', () => {
-        ['gate-input', 'gate-output'].forEach(id => {
+        ['gate-input', 'gate-output', 'gate-monitor'].forEach(id => {
             if (localStorage.getItem('gate_' + id) === '1') {
                 const el = document.getElementById(id);
                 if (el) {

@@ -179,7 +179,7 @@
     <div class="glass-card p-8 w-full max-w-lg glow" style="max-height:90vh; overflow-y:auto;">
         <h3 class="text-xl font-bold mb-6" style="color:var(--text-primary);">Add AI Provider</h3>
         <form method="post" class="space-y-4">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else \'\' }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
             <input type="hidden" name="action" value="create">
             <div>
                 <label class="block text-sm font-medium mb-2" style="color:var(--text-secondary);">Display Name</label>

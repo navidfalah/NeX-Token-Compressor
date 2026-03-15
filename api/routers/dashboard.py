@@ -152,20 +152,39 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
     from services.gateway.compression.nex_code_compressor import ALGO_REGISTRY as CODE_ALGO
     from services.gateway.compression.nex_text_compressor import ALGO_REGISTRY as TEXT_ALGO
     
+    # Calculate aggregate metrics for the template
+    ratio = 0
+    if tokens_original > 0:
+        ratio = round((1 - tokens_compressed / tokens_original) * 100)
+
+    # Simplified avg latency for overview (mocking if missing in logs)
+    avg_latency = 0
+    if total_requests > 0:
+        stmt_lat = select(func.avg(AuditLog.latency_ms)).where(AuditLog.organization_id == current_user.organization_id)
+        res_lat = await db.execute(stmt_lat)
+        avg_latency = res_lat.scalar() or 0
+
+    metrics = {
+        "total_requests": total_requests,
+        "total_tokens_original": tokens_original,
+        "total_tokens_compressed": tokens_compressed,
+        "total_cost_saved": float(cost_saved),
+        "compression_ratio": ratio,
+        "avg_latency": avg_latency
+    }
+    
     return templates.TemplateResponse("dashboard/home.html", {
         "request": request,
         "active_page": "dashboard",
-        "total_requests": total_requests,
-        "nex_requests_today": nex_requests_today,
-        "tokens_original": tokens_original,
-        "tokens_compressed": tokens_compressed,
-        "tokens_response": tokens_response,
-        "cost_saved": float(cost_saved),
+        "metrics": metrics,
         "recent_logs": recent_logs,
         "daily_stats": daily_stats,
+        "daily_stats_json": json.dumps(daily_stats),
         "provider_stats": provider_stats,
+        "provider_stats_json": json.dumps(provider_stats),
         "user_usage": user_usage,
         "user": current_user,
+        "days": days
     })
 
 @router.get("/compression/test-lab", response_class=HTMLResponse)
@@ -590,16 +609,6 @@ async def schema_standardization(request: Request, db: AsyncSession = Depends(ge
     return templates.TemplateResponse("dashboard/output_schema.html", {"request": request, **context})
 
 
-@router.get("/output/telemetry-headers", response_class=HTMLResponse, name="dashboard_telemetry_headers")
-async def telemetry_headers(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if not user: return RedirectResponse(url="/login")
-    # Fetch a recent log to show real header values
-    stmt = select(AuditLog).where(AuditLog.organization_id == user.organization_id).order_by(desc(AuditLog.timestamp)).limit(1)
-    res = await db.execute(stmt)
-    latest_log = res.scalar_one_or_none()
-    context = await get_common_context(db, user)
-    context["latest_log"] = latest_log
-    return templates.TemplateResponse("dashboard/output_telemetry_headers.html", {"request": request, **context})
 
 
 @router.get("/output/stream-normalization", response_class=HTMLResponse, name="dashboard_stream_normalization")

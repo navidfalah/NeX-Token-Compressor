@@ -1,0 +1,101 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Telemetry Headers | Output Gate{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-5xl mx-auto">
+
+    <div class="flex items-center gap-3 mb-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(99,102,241,0.15);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-cyan);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold" style="color:var(--text-primary);">Gateway Telemetry Headers</h1>
+            <p class="text-xs" style="color:var(--text-muted);">Output Gate · Metadata injected into every HTTP response</p>
+        </div>
+    </div>
+    <p class="text-sm mb-8 max-w-3xl" style="color:var(--text-secondary);">
+        Every response leaving the gateway carries custom <code>X-Gateway-*</code> headers. These are machine-readable
+        and allow client applications to observe compression savings, routing decisions, and latency without
+        parsing the response body.
+    </p>
+
+    <!-- Header reference -->
+    <div class="glass-card p-6 mb-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Header Reference</div>
+        <div class="space-y-3">
+            {% for h in [
+                ('X-Tokens-Original', 'var(--accent-amber)', 'Number of tokens in the raw, uncompressed prompt.', '3200'),
+                ('X-Tokens-Compressed', 'var(--accent-green)', 'Tokens after input-side compression — what the AI actually received.', '1140'),
+                ('X-Compression-Pct', 'var(--accent-green)', 'Token reduction percentage achieved by the input compression pipeline.', '64.4'),
+                ('X-Model-Used', 'var(--accent-cyan)', 'The exact AI provider and model name that generated the response.', 'deepseek-chat'),
+                ('X-Cost-USD', '#a78bfa', 'Actual cost of the AI API call in USD. 8 decimal places.', '0.00000160'),
+                ('X-Cost-Saved-USD', 'var(--accent-green)', 'Estimated cost saved vs. sending the uncompressed prompt.', '0.00000290'),
+                ('X-Latency-MS', '#f472b6', 'End-to-end gateway latency in milliseconds (from request receipt to response start).', '312'),
+            ] %}
+            <div class="flex items-start gap-4 p-3 rounded-xl" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04);">
+                <code class="text-xs font-mono w-48 flex-shrink-0 pt-0.5" style="color:{{ h[1] }};">{{ h[0] }}</code>
+                <div class="flex-1 text-xs" style="color:var(--text-secondary);">{{ h[2] }}</div>
+                <code class="text-xs font-mono flex-shrink-0" style="color:var(--text-muted);">{{ h[3] }}</code>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Live example from most recent request -->
+    <div class="glass-card p-6 mb-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">
+            Live Example — Most Recent Request
+            {% if not latest_log %}<span class="ml-2 opacity-50">(no requests yet)</span>{% endif %}
+        </div>
+        <pre class="text-xs font-mono p-4 rounded-xl overflow-auto" style="background:rgba(0,0,0,0.35); color:#4ade80; line-height:1.8;">
+{% if latest_log %}HTTP/1.1 200 OK
+Content-Type: application/json
+X-Tokens-Original:    {{ latest_log.tokens_original }}
+X-Tokens-Compressed:  {{ latest_log.tokens_compressed }}
+X-Compression-Pct:    {{ latest_log.compression_ratio }}
+X-Model-Used:         {{ latest_log.ai_provider.name if latest_log.ai_provider else 'N/A' }}
+X-Cost-USD:           {{ "%.8f"|format(latest_log.cost_actual|float) }}
+X-Cost-Saved-USD:     {{ "%.8f"|format(latest_log.cost_saved|float) }}
+X-Latency-MS:         {{ latest_log.latency_ms }}
+{% else %}HTTP/1.1 200 OK
+Content-Type: application/json
+X-Tokens-Original:    —
+X-Tokens-Compressed:  —
+X-Compression-Pct:    —
+X-Model-Used:         —
+X-Cost-USD:           —
+X-Cost-Saved-USD:     —
+X-Latency-MS:         —
+{% endif %}
+        </pre>
+    </div>
+
+    <!-- Usage example -->
+    <div class="glass-card p-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Reading Headers From Your App</div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <div class="text-xs font-semibold mb-2" style="color:#60a5fa;">Python (httpx)</div>
+                <pre class="text-xs font-mono p-3 rounded-lg overflow-auto" style="background:rgba(0,0,0,0.3); color:var(--text-secondary);">resp = httpx.post(
+    "http://gateway/v1/chat/completions",
+    headers={"Authorization": "Bearer fk-..."},
+    json={...}
+)
+saved  = resp.headers["X-Cost-Saved-USD"]
+model  = resp.headers["X-Model-Used"]
+tokens = resp.headers["X-Tokens-Original"]</pre>
+            </div>
+            <div>
+                <div class="text-xs font-semibold mb-2" style="color:#fbbf24;">JavaScript (fetch)</div>
+                <pre class="text-xs font-mono p-3 rounded-lg overflow-auto" style="background:rgba(0,0,0,0.3); color:var(--text-secondary);">const resp = await fetch(
+  "http://gateway/v1/chat/completions",
+  { method:"POST", headers:{...}, body: ... }
+);
+const saved = resp.headers.get("X-Cost-Saved-USD");
+const model = resp.headers.get("X-Model-Used");</pre>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -24,144 +24,181 @@
     </div>
 
     <!-- Nav Links -->
-    <nav class="py-4 overflow-y-auto" style="height: calc(100% - 160px);">
-        <!-- Group 1: Insights & Analytics -->
-        <div class="px-5 mb-3">
-            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
-                style="color:var(--text-muted);">Insights</span>
-        </div>
+    <nav class="py-3 overflow-y-auto" style="height: calc(100% - 160px);">
+
+        <!-- ── OVERVIEW ─────────────────────────────────────────────────────── -->
         <a href="{{ url_for('dashboard_home') }}"
             class="sidebar-link {% if request.url.path == '/dashboard/' %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Executive Overview
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Overview
         </a>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- INPUT GATE                                                         -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div class="px-4 mt-5 mb-1">
+            <button onclick="toggleGate('gate-input')"
+                class="w-full flex items-center justify-between group"
+                style="cursor:pointer; background:none; border:none; padding:0;">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:var(--accent-cyan);"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-cyan);">← Input Gate</span>
+                </div>
+                <svg id="gate-input-chevron" class="w-3 h-3 transition-transform" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        </div>
+        <div id="gate-input" class="sidebar-gate">
+
+            <!-- Sub: Compression -->
+            <div class="px-5 mt-2 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Compression</span>
+            </div>
+            <a href="{{ url_for('dashboard_compression_code') }}"
+                class="sidebar-link sidebar-sub {% if '/compression/code' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                Code Compression
+            </a>
+            <a href="{{ url_for('dashboard_compression_text') }}"
+                class="sidebar-link sidebar-sub {% if '/compression/text' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10"/></svg>
+                Text Compression
+            </a>
+
+            <!-- Sub: Privacy -->
+            <div class="px-5 mt-3 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">PII & Privacy</span>
+            </div>
+            <a href="{{ url_for('dashboard_privacy') }}"
+                class="sidebar-link sidebar-sub {% if '/privacy' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Privacy Hub
+            </a>
+            <a href="{{ url_for('dashboard_masked_documents_list') }}"
+                class="sidebar-link sidebar-sub {% if '/documents' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Masked Documents
+            </a>
+
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- OUTPUT GATE                                                        -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div class="px-4 mt-5 mb-1">
+            <button onclick="toggleGate('gate-output')"
+                class="w-full flex items-center justify-between group"
+                style="cursor:pointer; background:none; border:none; padding:0;">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:var(--accent-amber);"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color:var(--accent-amber);">Output Gate →</span>
+                </div>
+                <svg id="gate-output-chevron" class="w-3 h-3 transition-transform" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        </div>
+        <div id="gate-output" class="sidebar-gate">
+
+            <!-- Sub: Routing -->
+            <div class="px-5 mt-2 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Routing</span>
+            </div>
+            <a href="{{ url_for('dashboard_cascade') }}"
+                class="sidebar-link sidebar-sub {% if '/cascade' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Cascade Routing
+            </a>
+
+            <!-- Sub: Providers & Keys -->
+            <div class="px-5 mt-3 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Providers & Keys</span>
+            </div>
+            <a href="{{ url_for('dashboard_ai_providers') }}"
+                class="sidebar-link sidebar-sub {% if 'providers' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                AI Providers
+            </a>
+            <a href="{{ url_for('dashboard_api_key_list') }}"
+                class="sidebar-link sidebar-sub {% if 'api-keys' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                API Keys
+            </a>
+
+            <!-- Sub: Monitoring -->
+            <div class="px-5 mt-3 mb-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Monitoring</span>
+            </div>
+            <a href="{{ url_for('dashboard_pipeline_monitor') }}"
+                class="sidebar-link sidebar-sub {% if '/monitor' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Pipeline Monitor
+            </a>
+            <a href="{{ url_for('dashboard_playground') }}"
+                class="sidebar-link sidebar-sub {% if 'playground' in request.url.path %}active{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Test Playground
+            </a>
+
+        </div>
+
+        <!-- ── ANALYTICS ─────────────────────────────────────────────────────── -->
+        <div class="px-4 mt-5 mb-1">
+            <span class="text-[10px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Analytics</span>
+        </div>
         <a href="{{ url_for('dashboard_telemetry') }}"
             class="sidebar-link {% if '/telemetry' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
             Token Telemetry
         </a>
         <a href="{{ url_for('dashboard_analytics') }}"
             class="sidebar-link {% if '/analytics' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             API Analytics
         </a>
         <a href="{{ url_for('dashboard_security_audit') }}"
             class="sidebar-link {% if '/audit' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Security & Data Audit
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Security Audit
         </a>
 
-        <!-- Group 2: AI Gateway -->
-        <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
-                style="color:var(--text-muted);">AI Gateway</span>
-        </div>
-        <a href="{{ url_for('dashboard_cascade') }}"
-            class="sidebar-link {% if '/cascade' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Cascade Routing
-        </a>
-        <a href="{{ url_for('dashboard_compression_code') }}"
-            class="sidebar-link {% if '/compression/code' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            Code Compression
-        </a>
-        <a href="{{ url_for('dashboard_compression_text') }}"
-            class="sidebar-link {% if '/compression/text' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-            </svg>
-            Text Compression
-        </a>
-        <a href="{{ url_for('dashboard_ai_providers') }}"
-            class="sidebar-link {% if 'providers' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            AI Providers
-        </a>
-        <a href="{{ url_for('dashboard_api_key_list') }}"
-            class="sidebar-link {% if 'api-keys' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
-            API Keys
-        </a>
-        <a href="{{ url_for('dashboard_pipeline_monitor') }}"
-            class="sidebar-link {% if '/monitor' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Pipeline Monitor
-        </a>
-        <a href="{{ url_for('dashboard_playground') }}"
-            class="sidebar-link {% if 'playground' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Test Playground
-        </a>
-
-        <!-- Group 3: Data Privacy -->
-        <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
-                style="color:var(--text-muted);">Privacy</span>
-        </div>
-        <a href="{{ url_for('dashboard_privacy') }}"
-            class="sidebar-link {% if '/privacy' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Privacy Hub
-        </a>
-        <a href="{{ url_for('dashboard_masked_documents_list') }}"
-            class="sidebar-link {% if '/documents' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Masked Documents
-        </a>
-
-        <!-- Group 4: Administrative -->
-        <div class="px-5 mb-3 mt-6">
-            <span class="text-xs font-semibold uppercase tracking-widest opacity-50"
-                style="color:var(--text-muted);">Admin</span>
+        <!-- ── ADMIN ─────────────────────────────────────────────────────────── -->
+        <div class="px-4 mt-5 mb-1">
+            <span class="text-[10px] font-bold uppercase tracking-widest opacity-40" style="color:var(--text-muted);">Admin</span>
         </div>
         <a href="{{ url_for('dashboard_team') }}"
             class="sidebar-link {% if 'team' in request.url.path %}active{% endif %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             Team & Access
         </a>
+
     </nav>
+
+    <style>
+    .sidebar-sub { padding-left: 2rem !important; font-size: 0.78rem !important; }
+    .sidebar-gate { overflow: hidden; transition: max-height 0.25s ease; }
+    .sidebar-gate.collapsed { max-height: 0 !important; }
+    </style>
+    <script>
+    function toggleGate(id) {
+        const el = document.getElementById(id);
+        const chevron = document.getElementById(id + '-chevron');
+        const collapsed = el.classList.toggle('collapsed');
+        chevron.style.transform = collapsed ? 'rotate(-90deg)' : '';
+        localStorage.setItem('gate_' + id, collapsed ? '1' : '0');
+    }
+    // Restore state on load
+    document.addEventListener('DOMContentLoaded', () => {
+        ['gate-input', 'gate-output'].forEach(id => {
+            if (localStorage.getItem('gate_' + id) === '1') {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('collapsed');
+                    const ch = document.getElementById(id + '-chevron');
+                    if (ch) ch.style.transform = 'rotate(-90deg)';
+                }
+            }
+        });
+    });
+    </script>
+
 
 
 

@@ -1,0 +1,152 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Schema Standardization | Output Gate{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-6xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(251,191,36,0.15);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-amber);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 8h6M9 16h4"/></svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold" style="color:var(--text-primary);">Schema Standardization</h1>
+            <p class="text-xs" style="color:var(--text-muted);">Output Gate · All responses normalized to OpenAI-compatible JSON</p>
+        </div>
+    </div>
+    <p class="text-sm mb-8 max-w-3xl" style="color:var(--text-secondary);">
+        Regardless of which AI provider handles a request (DeepSeek, Gemini, Anthropic, or a custom model),
+        every response is translated into the standard <strong>OpenAI Chat Completion</strong> format before
+        delivery. Your clients never need to change their integration code if you switch providers.
+    </p>
+
+    <!-- How it works -->
+    <div class="grid lg:grid-cols-3 gap-4 mb-8">
+        <div class="glass-card p-5">
+            <div class="text-xs font-bold uppercase tracking-widest mb-3" style="color:var(--accent-amber);">1 · Provider Raw Response</div>
+            <p class="text-xs mb-3" style="color:var(--text-muted);">Each AI provider returns a slightly different JSON shape. Gemini wraps in <code>candidates[]</code>, Anthropic uses <code>content[]</code>, DeepSeek mirrors OpenAI closely but with subtle differences.</p>
+            <div class="text-[10px] font-mono p-3 rounded-lg" style="background:rgba(0,0,0,0.3); color:#f87171;">
+                // Gemini raw<br>
+                { "candidates": [{<br>
+                &nbsp;&nbsp;"content": { "parts": [{ "text": "..." }] }<br>
+                }] }
+            </div>
+        </div>
+        <div class="glass-card p-5 flex flex-col items-center justify-center">
+            <svg class="w-10 h-10 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-cyan);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            <div class="text-xs font-bold" style="color:var(--accent-cyan);">Gateway Translation Layer</div>
+            <p class="text-[10px] text-center mt-1" style="color:var(--text-muted);">Normalize · Map fields · Add telemetry wrapper</p>
+        </div>
+        <div class="glass-card p-5">
+            <div class="text-xs font-bold uppercase tracking-widest mb-3" style="color:var(--accent-green);">3 · Standardized Output</div>
+            <p class="text-xs mb-3" style="color:var(--text-muted);">Every response exits the gateway looking like an OpenAI <code>chat.completion</code> object. Drop-in compatible with any OpenAI SDK.</p>
+            <div class="text-[10px] font-mono p-3 rounded-lg" style="background:rgba(0,0,0,0.3); color:#4ade80;">
+                // Standard (OpenAI-compatible)<br>
+                { "choices": [{<br>
+                &nbsp;&nbsp;"message": { "role": "assistant",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"content": "..." }<br>
+                }] }
+            </div>
+        </div>
+    </div>
+
+    <!-- Field Mapping Table -->
+    <div class="glass-card p-6 mb-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Provider → Standard Field Mapping</div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border-glass);">
+                        <th class="text-left py-2 pr-6" style="color:var(--text-muted);">Standard Field</th>
+                        <th class="text-left py-2 pr-6" style="color:#60a5fa;">OpenAI / DeepSeek</th>
+                        <th class="text-left py-2 pr-6" style="color:#a78bfa;">Gemini</th>
+                        <th class="text-left py-2" style="color:#f472b6;">Anthropic</th>
+                    </tr>
+                </thead>
+                <tbody class="font-mono" style="color:var(--text-secondary);">
+                    {% for row in [
+                        ('choices[0].message.content', 'choices[0].message.content', 'candidates[0].content.parts[0].text', 'content[0].text'),
+                        ('choices[0].finish_reason', 'choices[0].finish_reason', 'candidates[0].finishReason', 'stop_reason'),
+                        ('usage.prompt_tokens', 'usage.prompt_tokens', 'usageMetadata.promptTokenCount', 'usage.input_tokens'),
+                        ('usage.completion_tokens', 'usage.completion_tokens', 'usageMetadata.candidatesTokenCount', 'usage.output_tokens'),
+                        ('model', 'model', 'modelVersion', 'model'),
+                        ('id', 'id', '(generated)', 'id'),
+                    ] %}
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <td class="py-2 pr-6" style="color:var(--accent-green);">{{ row[0] }}</td>
+                        <td class="py-2 pr-6" style="color:#60a5fa;">{{ row[1] }}</td>
+                        <td class="py-2 pr-6" style="color:#a78bfa;">{{ row[2] }}</td>
+                        <td class="py-2" style="color:#f472b6;">{{ row[3] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Live tester -->
+    <div class="glass-card p-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Live Schema Inspector — Paste a Provider Response</div>
+        <div class="grid lg:grid-cols-2 gap-4">
+            <div>
+                <label class="text-xs font-bold mb-2 block" style="color:var(--text-secondary);">Raw Provider Response (JSON)</label>
+                <textarea id="rawInput" rows="10" class="w-full font-mono text-xs p-3 rounded-lg resize-none outline-none"
+                    style="background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary);"
+                    placeholder='{"candidates":[{"content":{"parts":[{"text":"Hello!"}]}}]}'></textarea>
+                <div class="flex gap-2 mt-2">
+                    <select id="providerSelect" class="text-xs px-3 py-1.5 rounded-lg" style="background:var(--bg-glass); border:1px solid var(--border-glass); color:var(--text-secondary);">
+                        <option value="gemini">Gemini format</option>
+                        <option value="anthropic">Anthropic format</option>
+                        <option value="openai">OpenAI/DeepSeek format</option>
+                    </select>
+                    <button onclick="normalize()" class="text-xs px-4 py-1.5 rounded-lg font-bold" style="background:rgba(251,191,36,0.15); color:var(--accent-amber);">Normalize →</button>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold mb-2 block" style="color:var(--text-secondary);">Normalized Output (OpenAI-compatible)</label>
+                <pre id="normalizedOutput" class="w-full font-mono text-xs p-3 rounded-lg h-48 overflow-auto"
+                    style="background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:#4ade80; white-space:pre-wrap;">// Output will appear here</pre>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+function normalize() {
+    const raw = document.getElementById('rawInput').value.trim();
+    const provider = document.getElementById('providerSelect').value;
+    const out = document.getElementById('normalizedOutput');
+    try {
+        const d = JSON.parse(raw);
+        let content = '', finishReason = 'stop', pTokens = 0, cTokens = 0;
+        if (provider === 'gemini') {
+            content = d?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            finishReason = d?.candidates?.[0]?.finishReason ?? 'stop';
+            pTokens = d?.usageMetadata?.promptTokenCount ?? 0;
+            cTokens = d?.usageMetadata?.candidatesTokenCount ?? 0;
+        } else if (provider === 'anthropic') {
+            content = d?.content?.[0]?.text ?? '';
+            finishReason = d?.stop_reason ?? 'stop';
+            pTokens = d?.usage?.input_tokens ?? 0;
+            cTokens = d?.usage?.output_tokens ?? 0;
+        } else {
+            content = d?.choices?.[0]?.message?.content ?? '';
+            finishReason = d?.choices?.[0]?.finish_reason ?? 'stop';
+            pTokens = d?.usage?.prompt_tokens ?? 0;
+            cTokens = d?.usage?.completion_tokens ?? 0;
+        }
+        const normalized = {
+            id: 'chatcmpl-' + Date.now(),
+            object: 'chat.completion',
+            model: d.model ?? d.modelVersion ?? 'normalized',
+            choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: finishReason }],
+            usage: { prompt_tokens: pTokens, completion_tokens: cTokens, total_tokens: pTokens + cTokens },
+            firmaki_telemetry: { normalized_from: provider, gateway: 'firma-ki' }
+        };
+        out.textContent = JSON.stringify(normalized, null, 2);
+    } catch(e) {
+        out.textContent = '// Invalid JSON: ' + e.message;
+    }
+}
+</script>
+{% endblock %}

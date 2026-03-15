@@ -101,45 +101,86 @@ async def dashboard_home(request: Request, db: AsyncSession = Depends(get_db), c
     res_logs = await db.execute(stmt_logs)
     recent_logs = res_logs.scalars().all()
     
-    # Aggregates for charts (Simplified for now)
+    # ── Real per-day stats from AuditLog ────────────────────────────────────────
+    stmt_daily = select(
+        func.strftime('%Y-%m-%d', AuditLog.timestamp).label("day"),
+        func.sum(AuditLog.tokens_original).label("tok_orig"),
+        func.sum(AuditLog.tokens_compressed).label("tok_comp"),
+        func.count(AuditLog.id).label("reqs"),
+        func.sum(AuditLog.cost_actual).label("cost"),
+    ).where(
+        AuditLog.organization_id == current_user.organization_id,
+        AuditLog.timestamp >= start_date,
+    ).group_by("day").order_by("day")
+    res_daily = await db.execute(stmt_daily)
+    daily_map = {
+        row.day: {
+            "date": row.day,
+            "tokens_original": int(row.tok_orig or 0),
+            "tokens_compressed": int(row.tok_comp or 0),
+            "requests": int(row.reqs or 0),
+            "cost": float(row.cost or 0),
+        }
+        for row in res_daily.all()
+    }
     daily_stats = []
     for i in range(days):
-        dt = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
-        daily_stats.insert(0, {"date": dt, "tokens_original": 0, "tokens_compressed": 0})
-        
+        dt = (datetime.utcnow() - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        daily_stats.append(daily_map.get(dt, {
+            "date": dt, "tokens_original": 0, "tokens_compressed": 0, "requests": 0, "cost": 0.0
+        }))
+
+    # ── Provider breakdown ───────────────────────────────────────────────────────
     provider_stats = []
-    stmt_prov = select(AIProvider.name, func.count(AuditLog.id)).join(AuditLog, AIProvider.id == AuditLog.ai_provider_id).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by(AIProvider.name)
+    stmt_prov = select(
+        AIProvider.name,
+        func.count(AuditLog.id).label("reqs"),
+        func.sum(AuditLog.tokens_original).label("tokens"),
+        func.sum(AuditLog.cost_actual).label("cost"),
+    ).join(AuditLog, AIProvider.id == AuditLog.ai_provider_id, isouter=True).where(
+        AuditLog.organization_id == current_user.organization_id,
+        AuditLog.timestamp >= start_date,
+    ).group_by(AIProvider.name)
     res_prov = await db.execute(stmt_prov)
-    for name, count in res_prov.all():
-        provider_stats.append({"name": name, "requests": count})
+    for name, count, tok, cost in res_prov.all():
+        provider_stats.append({"name": name, "requests": count or 0, "tokens": int(tok or 0), "cost": float(cost or 0)})
 
-    # 4. User Usage Insights (BI)
-    user_usage = []
-    stmt_user = select(User.username, func.sum(AuditLog.tokens_original).label("tokens")).join(AuditLog, User.id == AuditLog.user_id).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by(User.username).order_by(desc("tokens")).limit(5)
-    res_user = await db.execute(stmt_user)
-    for uname, utokens in res_user.all():
-        user_usage.append({"username": uname, "tokens": utokens})
+    # ── User usage ───────────────────────────────────────────────────────────────
+    user_usage: list = []
 
-    # 5. Peak Usage Periods (BI - Hour of day)
+    # ── Peak hours ───────────────────────────────────────────────────────────────
     peak_usage = []
-    # Note: SQLite specific strftime for hour extraction
-    stmt_peak = select(func.strftime('%H', AuditLog.timestamp).label("hour"), func.count(AuditLog.id)).where(AuditLog.organization_id == current_user.organization_id, AuditLog.timestamp >= start_date).group_by("hour").order_by("hour")
+    stmt_peak = select(
+        func.strftime('%H', AuditLog.timestamp).label("hour"),
+        func.count(AuditLog.id).label("cnt"),
+    ).where(
+        AuditLog.organization_id == current_user.organization_id,
+        AuditLog.timestamp >= start_date,
+    ).group_by("hour").order_by("hour")
     res_peak = await db.execute(stmt_peak)
     for hour, count in res_peak.all():
         peak_usage.append({"hour": f"{hour}:00", "count": count})
 
+    # ── Avg latency ──────────────────────────────────────────────────────────────
+    stmt_lat = select(func.avg(AuditLog.latency_ms)).where(
+        AuditLog.organization_id == current_user.organization_id,
+        AuditLog.timestamp >= start_date,
+    )
+    res_lat = await db.execute(stmt_lat)
+    avg_latency = round(res_lat.scalar() or 0)
+
     metrics = {
         "total_requests": total_requests,
-        "total_tokens_original": tokens_original,
-        "total_tokens_compressed": tokens_compressed,
-        "middle_ai_input": tokens_compressed,
-        "middle_ai_output": tokens_response,
-        "financial_efficiency_pct": round((cost_saved / (cost_saved + (tokens_original * 0.00001))) * 100, 1) if tokens_original > 0 else 0, 
-        "total_cost_saved": cost_saved,
-        "roi_multiplier": round((float(cost_saved) / 0.001), 2) if cost_saved > 0 else 0, # Mock ROI baseline
-        "compression_ratio": round((1 - (tokens_compressed / tokens_original)) * 100, 1) if tokens_original > 0 else 0,
+        "total_tokens_original": int(tokens_original),
+        "total_tokens_compressed": int(tokens_compressed),
+        "middle_ai_input": int(tokens_compressed),
+        "middle_ai_output": int(tokens_response),
+        "financial_efficiency_pct": round((float(cost_saved) / (float(cost_saved) + (int(tokens_original) * 0.00001))) * 100, 1) if tokens_original and cost_saved else 0,
+        "total_cost_saved": float(cost_saved) if cost_saved else 0.0,
+        "roi_multiplier": round(float(cost_saved) / 0.001, 2) if cost_saved and float(cost_saved) > 0 else 0,
+        "compression_ratio": round((1 - (int(tokens_compressed) / int(tokens_original))) * 100, 1) if tokens_original else 0,
         "cache_hit_rate": 0,
-        "avg_latency": 0
+        "avg_latency": avg_latency,
     }
         
     context = await get_common_context(db, current_user)
@@ -218,10 +259,83 @@ async def api_key_list(request: Request, db: AsyncSession = Depends(get_db), cur
     stmt = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
     res = await db.execute(stmt)
     keys = res.scalars().all()
-    
+
+    stmt_p = select(AIProvider).where(AIProvider.organization_id == current_user.organization_id)
+    res_p = await db.execute(stmt_p)
+    providers = res_p.scalars().all()
+
     context = await get_common_context(db, current_user)
     context["keys"] = keys
+    context["providers"] = providers
+    context["success_message"] = None
     return templates.TemplateResponse("dashboard/api_keys.html", {"request": request, **context})
+
+
+@router.post("/api-keys", response_class=HTMLResponse)
+async def api_key_post(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user: return RedirectResponse(url="/login")
+    form = await request.form()
+    action = form.get("action", "")
+    success_message = None
+    error_message = None
+
+    # ── CREATE ──────────────────────────────────────────────────────────────────
+    if action == "create":
+        try:
+            name = (form.get("name") or "").strip()
+            if not name:
+                error_message = "Key name is required."
+            else:
+                rpm = form.get("rpm_limit")
+                dtl = form.get("daily_token_limit")
+                new_key = APIKey(
+                    name=name,
+                    organization_id=current_user.organization_id,
+                    user_id=current_user.id,
+                    linked_provider_id=form.get("provider_id") or None,
+                    rate_limit=int(rpm) if rpm and rpm.isdigit() else 60,
+                    daily_token_limit=int(dtl) if dtl and dtl.isdigit() else 0,
+                    enable_compression=bool(form.get("enable_compression")),
+                    enable_caching=bool(form.get("enable_caching")),
+                )
+                db.add(new_key)
+                await db.commit()
+                await db.refresh(new_key)
+                success_message = new_key.key  # shown once
+        except Exception as exc:
+            await db.rollback()
+            error_message = str(exc)
+
+    # ── REVOKE ──────────────────────────────────────────────────────────────────
+    elif action == "revoke":
+        key_id = form.get("key_id")
+        if key_id:
+            stmt_k = select(APIKey).where(
+                APIKey.id == key_id,
+                APIKey.organization_id == current_user.organization_id
+            )
+            res_k = await db.execute(stmt_k)
+            key_obj = res_k.scalar_one_or_none()
+            if key_obj:
+                key_obj.is_active = False
+                await db.commit()
+
+    # ── Reload list ─────────────────────────────────────────────────────────────
+    stmt = select(APIKey).where(APIKey.organization_id == current_user.organization_id)
+    res = await db.execute(stmt)
+    keys = res.scalars().all()
+
+    stmt_p = select(AIProvider).where(AIProvider.organization_id == current_user.organization_id)
+    res_p = await db.execute(stmt_p)
+    providers = res_p.scalars().all()
+
+    context = await get_common_context(db, current_user)
+    context["keys"] = keys
+    context["providers"] = providers
+    context["success_message"] = success_message
+    context["error_message"] = error_message
+    return templates.TemplateResponse("dashboard/api_keys.html", {"request": request, **context})
+
 
 @router.get("/audit", response_class=HTMLResponse, name="dashboard_security_audit")
 async def security_audit(request: Request, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -441,6 +555,39 @@ async def pipeline_monitor(
     return templates.TemplateResponse("dashboard/pipeline_monitor.html", {
         "request": request, **context, "api_keys": api_keys
     })
+
+
+@router.get("/output/schema", response_class=HTMLResponse, name="dashboard_schema_standardization")
+async def schema_standardization(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login")
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/output_schema.html", {"request": request, **context})
+
+
+@router.get("/output/telemetry-headers", response_class=HTMLResponse, name="dashboard_telemetry_headers")
+async def telemetry_headers(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login")
+    # Fetch a recent log to show real header values
+    stmt = select(AuditLog).where(AuditLog.organization_id == user.organization_id).order_by(desc(AuditLog.timestamp)).limit(1)
+    res = await db.execute(stmt)
+    latest_log = res.scalar_one_or_none()
+    context = await get_common_context(db, user)
+    context["latest_log"] = latest_log
+    return templates.TemplateResponse("dashboard/output_telemetry_headers.html", {"request": request, **context})
+
+
+@router.get("/output/stream-normalization", response_class=HTMLResponse, name="dashboard_stream_normalization")
+async def stream_normalization(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login")
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/output_stream_normalization.html", {"request": request, **context})
+
+
+@router.get("/output/egress-sanitization", response_class=HTMLResponse, name="dashboard_egress_sanitization")
+async def egress_sanitization(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login")
+    context = await get_common_context(db, user)
+    return templates.TemplateResponse("dashboard/output_egress_sanitization.html", {"request": request, **context})
 
 
 @router.get("/analytics", response_class=HTMLResponse, name="dashboard_analytics")
@@ -788,110 +935,6 @@ def _decide_tier(text: str, threshold_tokens: int) -> dict:
     }
 
 
-@router.post("/api/pipeline-simulate", name="dashboard_pipeline_simulate")
-async def pipeline_simulate(
-    request: Request,
-    body: SimulateRequest,
-    user: User = Depends(get_current_user)
-):
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    steps = []
-    t0 = time.time()
-
-    raw_text = body.input_text.strip()
-    raw_tokens = _estimate_tokens(raw_text)
-
-    steps.append({
-        "step": 1, "name": "Input Received", "status": "success",
-        "details": f"Payload: {_count_words(raw_text)} words / ~{raw_tokens} tokens",
-        "metrics": {"tokens": raw_tokens, "chars": len(raw_text), "words": _count_words(raw_text)},
-        "diff": None,
-    })
-
-    # Compression
-    algo_key = body.compression_algorithm
-    fn, algo_label = _ALGORITHMS.get(algo_key, (None, "Unknown"))
-
-    if fn is not None:
-        r = fn(raw_text)
-        compressed_text = r["result"] if r.get("success") else raw_text
-        failed = not r.get("success")
-        err = r.get("error") if failed else None
-    else:
-        compressed_text = raw_text
-        failed = False
-        err = None
-
-    c_tokens = _estimate_tokens(compressed_text)
-    saved = raw_tokens - c_tokens
-    pct = round((saved / raw_tokens * 100) if raw_tokens > 0 else 0, 1)
-
-    if algo_key != "none":
-        steps.append({
-            "step": 2,
-            "name": f"Compression — {algo_label}",
-            "status": "warning" if failed else "success",
-            "details": err if failed else f"{raw_tokens} → {c_tokens} tokens ({pct}% reduction)",
-            "metrics": {
-                "tokens_before": raw_tokens,
-                "tokens_after": c_tokens,
-                "tokens_saved": saved,
-                "reduction_pct": pct,
-                "algorithm": algo_label,
-            },
-            "diff": {
-                "before": raw_text,
-                "after": compressed_text,
-            },
-        })
-
-    # Routing
-    routing = _decide_tier(compressed_text, body.routing_threshold_tokens)
-    steps.append({
-        "step": 3, "name": "Cascade Routing Decision",
-        "status": "warning" if routing["tier"] == 2 else "success",
-        "details": f"Tier {routing['tier']} → {routing['model']}. {routing['escalation_reason']}",
-        "metrics": {
-            "tier": routing["tier"],
-            "model": routing["model"],
-            "token_count": routing["token_count"],
-            "complexity_signals": routing["complexity_signals"],
-            "threshold": body.routing_threshold_tokens,
-        },
-        "diff": None,
-    })
-
-    elapsed_ms = round((time.time() - t0) * 1000, 2)
-    cost_usd = round(c_tokens * (0.000002 if routing["tier"] == 2 else 0.0000005), 8)
-
-    steps.append({
-        "step": 4, "name": "Dispatch & Telemetry", "status": "success",
-        "details": f"{routing['model']} — ${cost_usd} — latency {elapsed_ms}ms",
-        "metrics": {
-            "model": routing["model"],
-            "estimated_cost_usd": cost_usd,
-            "pipeline_latency_ms": elapsed_ms,
-            "payload_tokens": c_tokens,
-        },
-        "diff": None,
-    })
-
-    return JSONResponse({
-        "success": True,
-        "steps": steps,
-        "summary": {
-            "raw_tokens": raw_tokens,
-            "processed_tokens": c_tokens,
-            "tokens_saved": saved,
-            "reduction_pct": pct,
-            "algorithm_used": algo_label,
-            "model_selected": routing["model"],
-            "tier": routing["tier"],
-            "estimated_cost_usd": cost_usd,
-        }
-    })
 
 import re
 import textwrap
@@ -994,7 +1037,8 @@ class SimulateRequest(BaseModel):
 async def pipeline_simulate(
     request: Request,
     body: SimulateRequest,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1103,6 +1147,34 @@ async def pipeline_simulate(
         }
     })
     
+    # ── Write to AuditLog so it appears in dashboard ──────────────────────────────
+    from decimal import Decimal
+    try:
+        from models.dashboard import AuditLog as _AuditLog
+        audit = _AuditLog(
+            organization_id=user.organization_id,
+            original_payload=raw_text[:4000],
+            compressed_payload=compressed_text[:4000],
+            deepseek_response="",
+            final_response="",
+            tokens_original=raw_tokens,
+            tokens_compressed=compressed_tokens,
+            tokens_response=0,
+            compression_ratio=reduction_pct,
+            cost_original=Decimal(str(round(raw_tokens * 0.0000005, 8))),
+            cost_actual=Decimal(str(estimated_cost_usd)),
+            cost_saved=Decimal(str(round(max(0, raw_tokens - compressed_tokens) * 0.0000005, 8))),
+            latency_ms=int(elapsed_ms),
+            status="success",
+            source="simulate",
+            data_bytes_in=len(raw_text.encode()),
+            data_bytes_out=len(compressed_text.encode()),
+        )
+        db.add(audit)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
     return JSONResponse({
         "success": True,
         "steps": steps,
@@ -1117,5 +1189,3 @@ async def pipeline_simulate(
             "estimated_cost_usd": estimated_cost_usd,
         }
     })
-
-

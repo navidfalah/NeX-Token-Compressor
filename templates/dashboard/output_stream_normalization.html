@@ -1,0 +1,117 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Stream Normalization | Output Gate{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-5xl mx-auto">
+
+    <div class="flex items-center gap-3 mb-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,0.12);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-green);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold" style="color:var(--text-primary);">Stream Chunk Normalization</h1>
+            <p class="text-xs" style="color:var(--text-muted);">Output Gate · Server-Sent Events unified across all providers</p>
+        </div>
+    </div>
+    <p class="text-sm mb-8 max-w-3xl" style="color:var(--text-secondary);">
+        When streaming is enabled (<code>"stream": true</code>), AI providers send data in completely different chunk formats.
+        The gateway intercepts every fragment, repackages it into a standardized SSE format identical to OpenAI's,
+        and re-streams it — so your client never knows which model was actually used.
+    </p>
+
+    <!-- Format comparison -->
+    <div class="grid lg:grid-cols-3 gap-4 mb-8">
+        <div class="glass-card p-5">
+            <div class="text-xs font-bold mb-3" style="color:#a78bfa;">Gemini Stream Chunk</div>
+            <pre class="text-[10px] font-mono overflow-auto" style="color:#f472b6; line-height:1.7;">{
+  "candidates": [{
+    "content": {
+      "parts": [{"text": "Hello"}]
+    },
+    "finishReason": null
+  }]
+}</pre>
+        </div>
+        <div class="glass-card p-5 flex flex-col items-center justify-center">
+            <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--accent-amber);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+            <div class="text-xs font-bold text-center" style="color:var(--accent-amber);">Gateway SSE Normalizer</div>
+            <p class="text-[10px] text-center mt-1" style="color:var(--text-muted);">Catches raw chunks<br>Rewraps in OpenAI SSE format<br>Re-streams to client</p>
+        </div>
+        <div class="glass-card p-5">
+            <div class="text-xs font-bold mb-3" style="color:var(--accent-green);">Normalized SSE Output</div>
+            <pre class="text-[10px] font-mono overflow-auto" style="color:#4ade80; line-height:1.7;">data: {
+  "choices": [{
+    "delta": {
+      "content": "Hello"
+    },
+    "finish_reason": null
+  }]
+}
+
+data: [DONE]</pre>
+        </div>
+    </div>
+
+    <!-- Live stream simulator -->
+    <div class="glass-card p-6 mb-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Live Stream Simulator</div>
+        <p class="text-xs mb-4" style="color:var(--text-muted);">Watch how the stream chunk normalizer repackages tokens in real time.</p>
+        <div class="flex gap-3 mb-4 flex-wrap">
+            <select id="streamProvider" class="text-xs px-3 py-1.5 rounded-lg" style="background:var(--bg-glass); border:1px solid var(--border-glass); color:var(--text-secondary);">
+                <option value="gemini">Simulate Gemini chunks</option>
+                <option value="anthropic">Simulate Anthropic chunks</option>
+                <option value="openai">Simulate OpenAI chunks</option>
+            </select>
+            <button onclick="startSimulation()" class="text-xs px-4 py-1.5 rounded-lg font-bold" style="background:rgba(16,185,129,0.15); color:var(--accent-green);">▶ Start Stream</button>
+            <button onclick="stopSimulation()" class="text-xs px-3 py-1.5 rounded-lg" style="background:rgba(239,68,68,0.1); color:#f87171;">■ Stop</button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <div class="text-[10px] font-bold mb-2 uppercase tracking-widest" style="color:var(--text-muted);">Raw Chunks (Provider)</div>
+                <div id="rawStream" class="font-mono text-[10px] p-3 rounded-xl h-40 overflow-auto" style="background:rgba(0,0,0,0.35); color:#f472b6; line-height:1.8;"></div>
+            </div>
+            <div>
+                <div class="text-[10px] font-bold mb-2 uppercase tracking-widest" style="color:var(--text-muted);">Normalized SSE Output</div>
+                <div id="normStream" class="font-mono text-[10px] p-3 rounded-xl h-40 overflow-auto" style="background:rgba(0,0,0,0.35); color:#4ade80; line-height:1.8;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config note -->
+    <div class="glass-card p-5">
+        <div class="text-xs font-bold uppercase tracking-widest mb-3" style="color:var(--text-muted);">How to Enable Streaming</div>
+        <pre class="text-xs font-mono p-3 rounded-lg" style="background:rgba(0,0,0,0.3); color:var(--text-secondary);">curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer fk-your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[...],"stream":true}'</pre>
+        <p class="text-xs mt-3" style="color:var(--text-muted);">The gateway will automatically detect the stream flag and activate the SSE normalizer pipeline for that request.</p>
+    </div>
+
+</div>
+<script>
+const WORDS = ["The ", "quick ", "brown ", "fox ", "compresses ", "its ", "prompt ", "before ", "sending ", "to ", "DeepSeek."];
+let _timer = null;
+function startSimulation() {
+    stopSimulation();
+    const raw = document.getElementById('rawStream');
+    const norm = document.getElementById('normStream');
+    const prov = document.getElementById('streamProvider').value;
+    raw.textContent = ''; norm.textContent = '';
+    let i = 0;
+    _timer = setInterval(() => {
+        if (i >= WORDS.length) { clearInterval(_timer); norm.insertAdjacentText('beforeend', '\ndata: [DONE]\n'); return; }
+        const word = WORDS[i++];
+        if (prov === 'gemini') {
+            raw.insertAdjacentText('beforeend', JSON.stringify({candidates:[{content:{parts:[{text:word}]}}]}) + '\n');
+        } else if (prov === 'anthropic') {
+            raw.insertAdjacentText('beforeend', JSON.stringify({type:'content_block_delta',delta:{text:word}}) + '\n');
+        } else {
+            raw.insertAdjacentText('beforeend', 'data: ' + JSON.stringify({choices:[{delta:{content:word}}]}) + '\n');
+        }
+        norm.insertAdjacentText('beforeend', 'data: ' + JSON.stringify({choices:[{delta:{content:word},finish_reason:null}]}) + '\n');
+        raw.scrollTop = raw.scrollHeight; norm.scrollTop = norm.scrollHeight;
+    }, 200);
+}
+function stopSimulation() { if (_timer) { clearInterval(_timer); _timer = null; } }
+</script>
+{% endblock %}

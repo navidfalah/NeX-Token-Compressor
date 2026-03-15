@@ -1,0 +1,108 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block title %}Egress Sanitization | Output Gate{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-6 py-8 max-w-5xl mx-auto">
+
+    <div class="flex items-center gap-3 mb-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(239,68,68,0.12);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#f87171;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01"/></svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold" style="color:var(--text-primary);">Egress Sanitization</h1>
+            <p class="text-xs" style="color:var(--text-muted);">Output Gate · System-prompt firewall applied before every response delivery</p>
+        </div>
+    </div>
+    <p class="text-sm mb-8 max-w-3xl" style="color:var(--text-secondary);">
+        Because the gateway injects compression rules and system instructions into every prompt, AI models can
+        occasionally "hallucinate" and accidentally echo those internal instructions back in their response.
+        Egress Sanitization runs a fast regex scan on every output and strips any leaked system internals
+        before the response reaches the client.
+    </p>
+
+    <!-- Rule list -->
+    <div class="glass-card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-bold uppercase tracking-widest" style="color:var(--text-muted);">Active Sanitization Rules</div>
+            <button onclick="addRule()" class="text-xs px-3 py-1.5 rounded-lg font-bold" style="background:rgba(239,68,68,0.12); color:#f87171;">+ Add Rule</button>
+        </div>
+        <div id="ruleList" class="space-y-2">
+            <!-- Rules rendered by JS -->
+        </div>
+    </div>
+
+    <!-- Live tester -->
+    <div class="glass-card p-6">
+        <div class="text-xs font-bold uppercase tracking-widest mb-4" style="color:var(--text-muted);">Live Sanitization Test</div>
+        <p class="text-xs mb-4" style="color:var(--text-muted);">Paste an AI response below. Matching patterns will be highlighted and stripped.</p>
+        <div class="grid lg:grid-cols-2 gap-4">
+            <div>
+                <label class="text-xs font-bold mb-2 block" style="color:var(--text-secondary);">AI Response (raw)</label>
+                <textarea id="rawResponse" rows="10" class="w-full text-xs p-3 rounded-lg resize-none outline-none"
+                    style="background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary); line-height:1.6;"
+                    placeholder="Paste the AI response here...">As per the AST compression rules I was given, here is the answer: The capital of France is Paris. Note: I am using the NEX semantic pipeline to structure this response.</textarea>
+                <button onclick="sanitize()" class="mt-2 text-xs px-4 py-1.5 rounded-lg font-bold" style="background:rgba(239,68,68,0.12); color:#f87171;">Run Firewall →</button>
+            </div>
+            <div>
+                <label class="text-xs font-bold mb-2 block" style="color:var(--text-secondary);">Sanitized Output</label>
+                <div id="sanitizedOutput" class="text-xs p-3 rounded-lg min-h-[200px]"
+                    style="background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary); line-height:1.6; white-space:pre-wrap;">// Click "Run Firewall" to see sanitized output</div>
+                <div id="sanitizeStats" class="mt-2 text-xs" style="color:var(--text-muted);"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+let rules = [
+    { id: 1, pattern: "As per the AST compression rules[^.]*\\.", description: "Strip AST rule references", active: true },
+    { id: 2, pattern: "(?i)NEX (semantic|bytecode|pipeline|compression)[^.]*\\.", description: "Strip NEX pipeline mentions", active: true },
+    { id: 3, pattern: "(?i)(as instructed|per (my|the) (system|instructions?))[^.]*\\.", description: "Strip instruction echo", active: true },
+    { id: 4, pattern: "^Note:\\s.*$", description: "Strip trailing 'Note:' addendum", active: true },
+];
+
+function renderRules() {
+    const el = document.getElementById('ruleList');
+    el.innerHTML = rules.map(r => `
+        <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04);">
+            <label class="relative inline-flex cursor-pointer">
+                <input type="checkbox" ${r.active ? 'checked' : ''} onchange="toggleRule(${r.id})" class="sr-only peer">
+                <div class="w-8 h-4 rounded-full peer-checked:bg-red-500" style="background:rgba(255,255,255,0.1); transition:.2s;"></div>
+            </label>
+            <code class="text-[10px] font-mono flex-1 truncate" style="color:#f87171;">${r.pattern}</code>
+            <span class="text-[10px]" style="color:var(--text-muted);">${r.description}</span>
+            <button onclick="deleteRule(${r.id})" class="text-[10px] opacity-40 hover:opacity-100" style="color:#f87171;">✕</button>
+        </div>
+    `).join('');
+}
+
+function toggleRule(id) { rules = rules.map(r => r.id === id ? {...r, active: !r.active} : r); renderRules(); }
+function deleteRule(id) { rules = rules.filter(r => r.id !== id); renderRules(); }
+function addRule() {
+    const pattern = prompt("Enter regex pattern:");
+    if (!pattern) return;
+    const description = prompt("Short description:") || "Custom rule";
+    rules.push({ id: Date.now(), pattern, description, active: true });
+    renderRules();
+}
+
+function sanitize() {
+    let text = document.getElementById('rawResponse').value;
+    let stripped = 0;
+    rules.filter(r => r.active).forEach(r => {
+        try {
+            const flags = r.pattern.startsWith('(?i)') ? 'gim' : 'gm';
+            const p = r.pattern.replace(/^\(\?i\)/, '');
+            const re = new RegExp(p, flags);
+            const before = text;
+            text = text.replace(re, '').trim();
+            if (text !== before) stripped++;
+        } catch(e) {}
+    });
+    document.getElementById('sanitizedOutput').textContent = text || '(empty after sanitization)';
+    document.getElementById('sanitizeStats').textContent = `${stripped} rule(s) triggered · ${rules.filter(r=>r.active).length} rules active`;
+}
+
+renderRules();
+</script>
+{% endblock %}

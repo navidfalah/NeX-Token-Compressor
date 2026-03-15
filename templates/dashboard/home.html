@@ -9,16 +9,23 @@
 <div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
             <h1 class="text-3xl font-bold mb-1" style="color:var(--text-primary);">Overview</h1>
             <p class="text-sm" style="color:var(--text-secondary);">All gateway requests — tokens, cost, and compression in real time.</p>
         </div>
-        <div class="flex items-center gap-1 p-1 rounded-xl" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);">
-            {% for d in [7, 30, 90] %}
-            <a href="?days={{ d }}" class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all"
-               style="{{ 'background:rgba(99,102,241,0.25); color:var(--accent-cyan);' if days == d else 'color:var(--text-muted);' }}">{{ d }}d</a>
-            {% endfor %}
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-1 p-1 rounded-xl" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);">
+                {% for d in [7, 30, 90] %}
+                <a href="?days={{ d }}" class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all"
+                   style="{{ 'background:rgba(99,102,241,0.25); color:var(--accent-cyan);' if days == d else 'color:var(--text-muted);' }}">{{ d }}d</a>
+                {% endfor %}
+            </div>
+            
+            <a href="/dashboard/export/analytics-report?days={{ days }}" class="btn-gradient text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 font-bold shadow-lg shadow-indigo-500/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download Report
+            </a>
         </div>
     </div>
 

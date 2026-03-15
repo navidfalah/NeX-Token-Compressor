@@ -2,93 +2,117 @@
 {% block title %}Team & Access{% endblock %}
 
 {% block dashboard_content %}
-<div class="mb-8">
-    <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary);">Team & Access Management</h1>
-    <p style="color:var(--text-secondary);">Manage who has access to your organization and their roles.</p>
-</div>
+<div class="px-6 py-8 max-w-7xl mx-auto animate-fade-in">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+            <h1 class="text-3xl font-bold flex items-center gap-3 mb-1" style="color:var(--text-primary);">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center glow" style="background:var(--gradient-primary); color:white;">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                Team & Access
+            </h1>
+            <p class="text-sm" style="color:var(--text-secondary);">Manage who has access to your organization, their roles, and API usage.</p>
+        </div>
+        <div>
+            <a href="#" onclick="alert('Invite UI coming soon!')" class="btn-gradient text-sm px-5 py-2.5 rounded-xl inline-flex items-center gap-2 font-bold shadow-lg shadow-indigo-500/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                Invite Member
+            </a>
+        </div>
+    </div>
 
 <!-- Members Table -->
-<div class="glass-card overflow-hidden mb-6">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Email</th>
-                <th class="text-center">API Keys</th>
-                <th class="text-center">Requests</th>
-                <th>Last Login</th>
-                <th>Last Activity</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
+<div class="glass-card overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
+        <h3 class="font-bold flex items-center gap-2" style="color:var(--text-primary);">
+            Active Members
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="background:rgba(99,102,241,0.15); color:var(--accent-cyan);">{{ member_stats|length }}</span>
+        </h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr style="background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border-glass);">
+                    <th class="text-left px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">User</th>
+                    <th class="text-left px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">Role</th>
+                    <th class="text-center px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">API Keys</th>
+                    <th class="text-center px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">Requests</th>
+                    <th class="text-left px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">Activity</th>
+                    <th class="text-right px-6 py-4 font-bold uppercase tracking-widest text-[10px]" style="color:var(--text-muted);">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
             {% for ms in member_stats %}
-            <tr>
-                <td>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+            <tr class="hover:bg-white/3 transition-colors group">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg"
                             style="background:var(--gradient-primary);">
-                            {{ ms.user.first_name[0] if ms.user.first_name else '' }}{{ ms.user.last_name[0] if ms.user.last_name else '' }}
+                            {{ ms.user.first_name[0] if ms.user.first_name else '?' }}{{ ms.user.last_name[0] if ms.user.last_name else '' }}
                         </div>
                         <div>
-                            <div class="font-medium" style="color:var(--text-primary);">
+                            <div class="font-bold mb-0.5" style="color:var(--text-primary);">
                                 {{ ms.user.first_name|default("—") }} {{ ms.user.last_name|default("—") }}
+                                {% if ms.user.id == user.id %}
+                                <span class="ml-2 text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/10" style="color:var(--text-secondary);">You</span>
+                                {% endif %}
                             </div>
-                            <div class="text-xs" style="color:var(--text-muted);">
-                                @{{ ms.user.username or "—" }}
+                            <div class="text-xs flex items-center gap-2" style="color:var(--text-muted);">
+                                {{ ms.user.email or "—" }}
                             </div>
                         </div>
                     </div>
                 </td>
-                <td>
+                <td class="px-6 py-4">
                     {% if ms.user.role == 'owner' %}
-                    <span class="badge badge-active">Owner</span>
+                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider" style="background:rgba(250,185,91,0.15); color:var(--accent-amber); border:1px solid rgba(250,185,91,0.2);">Owner</span>
                     {% else %}
-                    <span class="badge badge-success">User</span>
+                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider" style="background:rgba(16,185,129,0.15); color:var(--accent-green); border:1px solid rgba(16,185,129,0.2);">User</span>
                     {% endif %}
                 </td>
-                <td class="text-sm" style="color:var(--text-secondary);">{{ ms.user.email or "—" }}</td>
-                <td class="text-center font-medium" style="color:var(--text-primary);">
-                    {{ ms.active_keys|default(0) }}
+                <td class="px-6 py-4 text-center">
+                    <div class="text-sm font-bold font-mono" style="color:var(--text-primary);">{{ ms.active_keys|default(0) }}</div>
                 </td>
-                <td class="text-center font-medium" style="color:var(--text-primary);">
-                    {{ ms.requests or "0" }}
+                <td class="px-6 py-4 text-center">
+                    <div class="text-sm font-bold font-mono" style="color:var(--text-primary);">{{ ms.requests or "0" }}</div>
                 </td>
-                <td class="text-xs" style="color:var(--text-muted);">
-                    {{ ms.user.last_login|timesince_short if ms.user.last_login else "Never" }}
+                <td class="px-6 py-4">
+                    <div class="text-xs" style="color:var(--text-primary);">
+                        <span class="opacity-50 inline-block w-12">Login:</span> 
+                        {{ ms.user.last_login|timesince_short if ms.user.last_login else "Never" }}
+                    </div>
+                    <div class="text-xs mt-1" style="color:var(--text-primary);">
+                        <span class="opacity-50 inline-block w-12">Active:</span>
+                        {{ ms.user.last_activity|timesince_short if ms.user.last_activity else "—" }}
+                    </div>
                 </td>
-                <td class="text-xs" style="color:var(--text-muted);">
-                    {{ ms.user.last_activity|timesince_short if ms.user.last_activity else "—" }}
-                </td>
-                <td>
+                <td class="px-6 py-4 text-right">
                     {% if ms.user.id != user.id %}
-                    <div class="flex gap-1">
-                        <form method="post" class="inline"><input type="hidden" name="csrf_token" value="">
+                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <form method="post" class="inline m-0"><input type="hidden" name="csrf_token" value="">
                             <input type="hidden" name="action" value="change_role">
                             <input type="hidden" name="user_id" value="{{ ms.user.id }}">
                             {% if ms.user.role == 'user' %}
                             <input type="hidden" name="role" value="owner">
-                            <button type="submit" class="btn-secondary text-xs px-2 py-1">→ Owner</button>
+                            <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" style="background:var(--bg-input); color:var(--accent-amber);">Make Owner</button>
                             {% else %}
                             <input type="hidden" name="role" value="user">
-                            <button type="submit" class="btn-secondary text-xs px-2 py-1">→ User</button>
+                            <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" style="background:var(--bg-input); color:var(--accent-cyan);">Make User</button>
                             {% endif %}
                         </form>
-                        <form method="post" class="inline" onsubmit="return confirm('Deactivate this user?')"><input type="hidden" name="csrf_token" value="">
+                        <form method="post" class="inline m-0" onsubmit="return confirm('Deactivate this user? They will lose access immediately.')"><input type="hidden" name="csrf_token" value="">
                             <input type="hidden" name="action" value="remove_user">
                             <input type="hidden" name="user_id" value="{{ ms.user.id }}">
-                            <button type="submit" class="btn-danger text-xs px-2 py-1">Remove</button>
+                            <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:bg-red-500/10" style="background:var(--bg-input); color:var(--accent-red);">Remove</button>
                         </form>
                     </div>
-                    {% else %}
-                    <span class="text-xs font-medium" style="color:var(--text-muted);">You</span>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- Pending Invitations -->
@@ -124,13 +148,5 @@
 </div>
 {% endif %}
 
-<!-- Invite link -->
-<div class="mt-6">
-    <a href="{{ url_for('accounts_invite') }}" class="btn-gradient text-sm px-6 py-2.5 inline-flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        Invite New Member
-    </a>
-</div>
+</div> <!-- /animate-fade-in wrapper -->
 {% endblock %}

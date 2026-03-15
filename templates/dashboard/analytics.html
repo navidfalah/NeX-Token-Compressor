@@ -154,7 +154,7 @@
     <!-- Detailed Request Log Table -->
     <div class="glass-card overflow-hidden">
         <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border-glass);">
-            <h3 class="font-bold" style="color:var(--text-primary);">Request Log <span class="text-xs opacity-50 ml-2">{{ logs|length }} entries</span></h3>
+            <h3 class="font-bold" style="color:var(--text-primary);">Request Log <span class="text-xs opacity-50 ml-2">Page {{ current_page }} of {{ total_pages }} ({{ summary.total_requests }} total entries)</span></h3>
             <div class="text-[10px]" style="color:var(--text-muted);">Click a row to see input/output</div>
         </div>
         <div class="overflow-x-auto">
@@ -219,7 +219,43 @@
             </table>
         </div>
         {% if logs|length == 0 %}
-        <div class="p-12 text-center" style="color:var(--text-muted);">No requests match the current filters.</div>
+        <div class="p-12 text-center" style="color:var(--text-muted);">No requests match the current filters on this page.</div>
+        {% endif %}
+
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color:var(--border-glass);">
+            <div class="text-xs" style="color:var(--text-muted);">
+                Showing page {{ current_page }} of {{ total_pages }}
+            </div>
+            <div class="flex gap-2">
+                {% if current_page > 1 %}
+                <a href="?page={{ current_page - 1 }}&days={{ filter_days }}&status_filter={{ filter_status }}&api_key_filter={{ filter_api_key }}&source_filter={{ filter_source }}" 
+                   class="px-4 py-2 rounded-lg text-xs font-bold transition-colors" 
+                   style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                    ← Previous
+                </a>
+                {% else %}
+                <div class="px-4 py-2 rounded-lg text-xs font-bold opacity-50 cursor-not-allowed" 
+                     style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-muted);">
+                    ← Previous
+                </div>
+                {% endif %}
+                
+                {% if current_page < total_pages %}
+                <a href="?page={{ current_page + 1 }}&days={{ filter_days }}&status_filter={{ filter_status }}&api_key_filter={{ filter_api_key }}&source_filter={{ filter_source }}" 
+                   class="px-4 py-2 rounded-lg text-xs font-bold transition-colors" 
+                   style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-primary);">
+                    Next →
+                </a>
+                {% else %}
+                <div class="px-4 py-2 rounded-lg text-xs font-bold opacity-50 cursor-not-allowed" 
+                     style="background:var(--bg-input); border:1px solid var(--border-input); color:var(--text-muted);">
+                    Next →
+                </div>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
     </div>
 

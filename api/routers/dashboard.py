@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 import json
+import io
+from fpdf import FPDF
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, desc
@@ -11,6 +13,40 @@ from models.accounts import User
 from models.dashboard import APIKey, CompressionRule, AIProvider, AuditLog, SecureDocument, KeyMapping, PrivacyConfig
 from core.security import decode_access_token
 from api.templates_config import templates
+"""
+Firma-KI  —  Analytics Report
+German-corporate minimal design.
+Requires: pip install reportlab
+"""
+
+import io
+from datetime import datetime, timedelta
+
+from fastapi import Depends, Request
+from fastapi.responses import RedirectResponse, StreamingResponse
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.shapes import Drawing, String
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    HRFlowable,
+    KeepTogether,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+from reportlab.platypus.flowables import Flowable
+
+
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -630,14 +666,20 @@ async def analytics_view(
     api_key_filter: str = "all",
     source_filter: str = "all",
     days: int = 7,
+    # Pagination
+    page: int = 1,
+    limit: int = 50,
 ):
     if not user:
         return RedirectResponse(url="/accounts/login", status_code=status.HTTP_302_FOUND)
     context = await get_common_context(db, user)
 
+    page = max(1, page)
+    limit = max(10, min(200, limit))
+
     since = datetime.utcnow() - timedelta(days=days)
 
-    # Build filtered query
+    # Build filtered query for all logs (used for stats)
     base_q = (
         select(AuditLog)
         .options(
@@ -656,9 +698,17 @@ async def analytics_view(
     if source_filter != "all":
         base_q = base_q.where(AuditLog.source == source_filter)
 
-    base_q = base_q.order_by(desc(AuditLog.timestamp)).limit(200)
-    result = await db.execute(base_q)
-    logs = result.scalars().all()
+    # First execute the query to get all logs for accurate summary stats
+    base_q = base_q.order_by(desc(AuditLog.timestamp))
+    result_all = await db.execute(base_q)
+    all_logs = result_all.scalars().all()
+    total_logs = len(all_logs)
+    total_pages = max(1, (total_logs + limit - 1) // limit)
+
+    # The slice for the current page
+    offset = (page - 1) * limit
+    logs = all_logs[offset:offset + limit]
+
 
     # ── Summary aggregates ─────────────────────────────────────────────────────
     total_requests = len(logs)
@@ -717,7 +767,7 @@ async def analytics_view(
         "request": request,
         **context,
         "summary": summary,
-        "logs": logs[:100],          # keep template manageable
+        "logs": logs,
         "key_stats": list(key_stats.values()),
         "provider_stats": list(provider_stats.values()),
         "all_keys": all_keys,
@@ -726,6 +776,9 @@ async def analytics_view(
         "filter_api_key": api_key_filter,
         "filter_source": source_filter,
         "filter_days": days,
+        # Pagination
+        "current_page": page,
+        "total_pages": total_pages,
     })
 
 
@@ -1098,25 +1151,77 @@ async def pipeline_simulate(
     compressed_text = raw_text
     compression_failed = False
     compression_error = None
-    
-    if algorithm_used == "ast":
-        r = _ast_prune(raw_text)
-        algorithm_label = "Python AST Pruner"
-        if r["success"]:
-            compressed_text = r["result"]
+    algorithm_label = "None (bypass)"
+
+    # ── Route through the ALGO_REGISTRY ──────────────────────────────────────
+    # Import both registries so all algorithm keys work
+    from services.gateway.compression.nex_code_compressor import (
+        ALGO_REGISTRY as CODE_REGISTRY,
+        NEXCodeCompressor,
+    )
+    from services.gateway.compression.nex_text_compressor import (
+        ALGO_REGISTRY as TEXT_REGISTRY,
+        NEXTextCompressor,
+    )
+
+    payload_type = body.payload_type.lower()
+
+    if algorithm_used and algorithm_used != "none":
+        # Determine which registry to consult based on payload type
+        if payload_type == "code":
+            registry = CODE_REGISTRY
+            compressor_cls = NEXCodeCompressor
         else:
+            registry = TEXT_REGISTRY
+            compressor_cls = NEXTextCompressor
+
+        if algorithm_used in registry:
+            # Run through the individual algorithm
+            try:
+                if payload_type == "code":
+                    result_obj = NEXCodeCompressor.compress_with_algo(raw_text, algorithm_used)
+                else:
+                    result_obj = NEXTextCompressor.compress_with_algo(raw_text, algorithm_used)
+                compressed_text = result_obj.compressed
+                algorithm_label = registry[algorithm_used]["name"]
+            except Exception as e:
+                compression_failed = True
+                compression_error = f"Algorithm error: {str(e)}"
+                algorithm_label = registry.get(algorithm_used, {}).get("name", algorithm_used)
+
+        elif algorithm_used == "full_pipeline":
+            # Run the full multi-stage pipeline
+            try:
+                if payload_type == "code":
+                    result_obj = NEXCodeCompressor.compress_input(raw_text)
+                else:
+                    result_obj = NEXTextCompressor.compress_input(raw_text)
+                compressed_text = result_obj.compressed
+                algorithm_label = "Full NEX Pipeline"
+            except Exception as e:
+                compression_failed = True
+                compression_error = f"Pipeline error: {str(e)}"
+                algorithm_label = "Full NEX Pipeline"
+
+        elif algorithm_used == "extreme_pipeline":
+            try:
+                if payload_type == "code":
+                    result_obj = NEXCodeCompressor.compress_input(raw_text, extreme=True)
+                else:
+                    result_obj = NEXTextCompressor.compress_input(raw_text, extreme=True)
+                compressed_text = result_obj.compressed
+                algorithm_label = "Full NEX Extreme Pipeline"
+            except Exception as e:
+                compression_failed = True
+                compression_error = f"Extreme pipeline error: {str(e)}"
+                algorithm_label = "Full NEX Extreme Pipeline"
+
+        else:
+            # Unknown key — report it clearly
             compression_failed = True
-            compression_error = r.get("error", "AST parse failed — is this valid Python?")
-    elif algorithm_used == "regex":
-        r = _regex_prune(raw_text)
-        algorithm_label = "Regex Comment Stripper"
-        compressed_text = r["result"]
-    elif algorithm_used == "nex_s1":
-        r = _nex_s1_prune(raw_text)
-        algorithm_label = "NEX Semantic Density Filter"
-        compressed_text = r["result"]
-    else:
-        algorithm_label = "None (bypass)"
+            compression_error = f"Unknown algorithm key: '{algorithm_used}'"
+            algorithm_label = algorithm_used
+
 
     compressed_tokens = _estimate_tokens(compressed_text)
     tokens_saved = raw_tokens - compressed_tokens
@@ -1219,3 +1324,526 @@ async def pipeline_simulate(
             "estimated_cost_usd": estimated_cost_usd,
         }
     })
+
+
+
+# ─────────────────────────────────────────────
+# Colour palette  —  monochrome + single accent
+# ─────────────────────────────────────────────
+INK        = colors.HexColor("#0d0d0d")   # near-black for body text
+INK_LIGHT  = colors.HexColor("#4a4a4a")   # secondary text
+RULE       = colors.HexColor("#d0d0d0")   # hairlines & borders
+BG_ROW     = colors.HexColor("#f5f5f5")   # alternate table row
+BG_HEADER  = colors.HexColor("#1a1a1a")   # table header fill
+ACCENT     = colors.HexColor("#1a56a0")   # single blue accent
+ACCENT_DIM = colors.HexColor("#e8eef7")   # very pale accent for bands
+WHITE      = colors.white
+
+PAGE_W, PAGE_H = A4
+MARGIN         = 20 * mm
+CONTENT_W      = PAGE_W - 2 * MARGIN
+
+
+# ─────────────────────────────────────────────
+# Typography helpers
+# ─────────────────────────────────────────────
+def _style(name, font="Helvetica", size=9, color=INK,
+           leading=13, align=TA_LEFT, bold=False):
+    return ParagraphStyle(
+        name,
+        fontName="Helvetica-Bold" if bold else font,
+        fontSize=size,
+        textColor=color,
+        leading=leading,
+        alignment=align,
+    )
+
+STYLE_NOTE = _style("note", size=7.5, color=INK_LIGHT, align=TA_CENTER, leading=11)
+
+
+# ─────────────────────────────────────────────
+# Custom Flowables
+# ─────────────────────────────────────────────
+class PageHeader(Flowable):
+    """
+    Clean two-row header:
+    Row 1 — black bar with org name (white) + right-aligned report type label
+    Row 2 — large document title + 2 pt accent rule
+    """
+    def __init__(self, org_name, width):
+        super().__init__()
+        self.org_name = org_name
+        self.width    = width
+        self.height   = 48
+
+    def wrap(self, *args):
+        return self.width, self.height
+
+    def draw(self):
+        c = self.canv
+        w = self.width
+
+        # Top black bar
+        c.setFillColor(BG_HEADER)
+        c.rect(0, 32, w, 16, fill=1, stroke=0)
+
+        # Org name (left)
+        c.setFillColor(WHITE)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(0, 37, self.org_name.upper())
+
+        # Report type label (right)
+        c.setFillColor(colors.HexColor("#888888"))
+        c.setFont("Helvetica", 7.5)
+        c.drawRightString(w, 37, "KI-NUTZUNGSBERICHT / AI USAGE REPORT")
+
+        # Large title
+        c.setFillColor(INK)
+        c.setFont("Helvetica-Bold", 22)
+        c.drawString(0, 8, "Analytics Report")
+
+        # Short accent rule under title
+        c.setStrokeColor(ACCENT)
+        c.setLineWidth(2)
+        c.line(0, 5, 60, 5)
+
+
+class MetaRow(Flowable):
+    """Single horizontal strip of N labelled meta fields."""
+    def __init__(self, fields, width):
+        super().__init__()
+        self.fields = fields   # list of (label, value)
+        self.width  = width
+        self.height = 22
+
+    def wrap(self, *args):
+        return self.width, self.height
+
+    def draw(self):
+        c   = self.canv
+        w   = self.width
+        col = w / len(self.fields)
+
+        c.setStrokeColor(RULE)
+        c.setLineWidth(0.4)
+        c.rect(0, 0, w, self.height, fill=0, stroke=1)
+
+        for i, (label, value) in enumerate(self.fields):
+            x = i * col
+            if i > 0:
+                c.setStrokeColor(RULE)
+                c.setLineWidth(0.4)
+                c.line(x, 0, x, self.height)
+
+            c.setFillColor(INK_LIGHT)
+            c.setFont("Helvetica", 6.5)
+            c.drawString(x + 6, 14, label.upper())
+
+            c.setFillColor(INK)
+            c.setFont("Helvetica-Bold", 8.5)
+            c.drawString(x + 6, 4, value)
+
+
+class KPIRow(Flowable):
+    """
+    Borderless row of KPI cells separated by vertical hairlines.
+    Accented cells get a 2 pt top stripe.
+    """
+    def __init__(self, kpis, width):
+        super().__init__()
+        self.kpis  = kpis   # list of (label, value, accent: bool)
+        self.width = width
+        self.height = 44
+
+    def wrap(self, *args):
+        return self.width, self.height
+
+    def draw(self):
+        c   = self.canv
+        n   = len(self.kpis)
+        col = self.width / n
+
+        # Outer border
+        c.setStrokeColor(RULE)
+        c.setLineWidth(0.4)
+        c.rect(0, 0, self.width, self.height, fill=0, stroke=1)
+
+        for i, (label, value, use_accent) in enumerate(self.kpis):
+            x = i * col
+
+            # Column divider
+            if i > 0:
+                c.setStrokeColor(RULE)
+                c.setLineWidth(0.4)
+                c.line(x, 0, x, self.height)
+
+            # Accent top stripe
+            if use_accent:
+                c.setFillColor(ACCENT)
+                c.rect(x, self.height - 2, col, 2, fill=1, stroke=0)
+
+            # Value
+            val_font_size = 16 if len(value) <= 8 else 13
+            c.setFillColor(ACCENT if use_accent else INK)
+            c.setFont("Helvetica-Bold", val_font_size)
+            c.drawString(x + 8, 20, value)
+
+            # Label
+            c.setFillColor(INK_LIGHT)
+            c.setFont("Helvetica", 7)
+            c.drawString(x + 8, 7, label.upper())
+
+
+class SectionTitle(Flowable):
+    """Section heading with a 3 pt left accent bar."""
+    def __init__(self, text, width):
+        super().__init__()
+        self.text  = text
+        self.width = width
+        self.height = 16
+
+    def wrap(self, *args):
+        return self.width, self.height
+
+    def draw(self):
+        c = self.canv
+        c.setFillColor(ACCENT)
+        c.rect(0, 0, 3, self.height, fill=1, stroke=0)
+        c.setFillColor(INK)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(9, 4, self.text)
+
+
+# ─────────────────────────────────────────────
+# Table builders
+# ─────────────────────────────────────────────
+def _table(data, col_widths, align_right_from=1):
+    """Minimal table: dark header, hairline grid, zebra rows."""
+    n_cols = len(data[0])
+    align_cmds = [
+        ("ALIGN", (col, 0), (col, -1), "RIGHT")
+        for col in range(align_right_from, n_cols)
+    ]
+
+    style = TableStyle([
+        # Header
+        ("BACKGROUND",    (0, 0), (-1, 0), BG_HEADER),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0), 8),
+        ("TOPPADDING",    (0, 0), (-1, 0), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 7),
+        ("LEFTPADDING",   (0, 0), (-1, 0), 8),
+        ("RIGHTPADDING",  (0, 0), (-1, 0), 8),
+        # Body
+        ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE",      (0, 1), (-1, -1), 8.5),
+        ("TOPPADDING",    (0, 1), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 1), (-1, -1), 8),
+        ("RIGHTPADDING",  (0, 1), (-1, -1), 8),
+        ("TEXTCOLOR",     (0, 1), (-1, -1), INK),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [WHITE, BG_ROW]),
+        ("LINEBELOW",     (0, 0), (-1, -1), 0.3, RULE),
+        ("LINEAFTER",     (0, 0), (-1, -1), 0,   WHITE),
+        ("BOX",           (0, 0), (-1, -1), 0.4, RULE),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        *align_cmds,
+    ])
+    t = Table(data, colWidths=col_widths, repeatRows=1)
+    t.setStyle(style)
+    return t
+
+
+def _summary_table(metrics):
+    """Two-column key/value table for executive summary."""
+    data = [["KENNZAHL / METRIC", "WERT / VALUE"]]
+    for label, value in metrics:
+        data.append([label, value])
+
+    style = TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0), BG_HEADER),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0), 8),
+        ("TOPPADDING",    (0, 0), (-1, 0), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 7),
+        ("LEFTPADDING",   (0, 0), (-1, 0), 8),
+        ("RIGHTPADDING",  (0, 0), (-1, 0), 8),
+        # Label col
+        ("FONTNAME",      (0, 1), (0, -1), "Helvetica"),
+        ("FONTSIZE",      (0, 1), (0, -1), 8.5),
+        ("TEXTCOLOR",     (0, 1), (0, -1), INK_LIGHT),
+        # Value col
+        ("FONTNAME",      (1, 1), (1, -1), "Helvetica-Bold"),
+        ("FONTSIZE",      (1, 1), (1, -1), 9),
+        ("TEXTCOLOR",     (1, 1), (1, -1), INK),
+        ("ALIGN",         (1, 0), (1, -1), "RIGHT"),
+        ("TOPPADDING",    (0, 1), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+        ("LEFTPADDING",   (0, 1), (-1, -1), 8),
+        ("RIGHTPADDING",  (0, 1), (-1, -1), 8),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [WHITE, BG_ROW]),
+        ("LINEBELOW",     (0, 0), (-1, -1), 0.3, RULE),
+        ("BOX",           (0, 0), (-1, -1), 0.4, RULE),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+    ])
+    t = Table(data,
+              colWidths=[CONTENT_W * 0.62, CONTENT_W * 0.38],
+              repeatRows=1)
+    t.setStyle(style)
+    return t
+
+
+# ─────────────────────────────────────────────
+# Bar chart
+# ─────────────────────────────────────────────
+def _bar_chart(labels, values, caption="", width=CONTENT_W, height=100):
+    d  = Drawing(width, height + 28)
+    bc = VerticalBarChart()
+    bc.x      = 36
+    bc.y      = 22
+    bc.width  = width - 52
+    bc.height = height
+
+    bc.data        = [values]
+    bc.strokeColor = None
+
+    bc.bars[0].fillColor   = ACCENT
+    bc.bars[0].strokeColor = None
+
+    bc.valueAxis.valueMin            = 0
+    bc.valueAxis.labelTextFormat     = "%d"
+    bc.valueAxis.labels.fontSize     = 7
+    bc.valueAxis.labels.fillColor    = INK_LIGHT
+    bc.valueAxis.labels.fontName     = "Helvetica"
+    bc.valueAxis.gridStrokeColor     = RULE
+    bc.valueAxis.gridStrokeDashArray = [2, 3]
+    bc.valueAxis.strokeColor         = RULE
+
+    bc.categoryAxis.categoryNames    = labels
+    bc.categoryAxis.labels.fontSize  = 7
+    bc.categoryAxis.labels.fillColor = INK_LIGHT
+    bc.categoryAxis.labels.fontName  = "Helvetica"
+    bc.categoryAxis.labels.angle     = 15 if len(labels) > 5 else 0
+    bc.categoryAxis.strokeColor      = RULE
+    bc.categoryAxis.gridStrokeColor  = None
+
+    d.add(bc)
+
+    if caption:
+        d.add(String(width / 2, 4, caption,
+                     fontSize=7, fillColor=INK_LIGHT,
+                     fontName="Helvetica", textAnchor="middle"))
+    return d
+
+
+# ─────────────────────────────────────────────
+# Page callbacks
+# ─────────────────────────────────────────────
+def _draw_footer(canvas, doc):
+    canvas.saveState()
+    y = 10
+    canvas.setStrokeColor(RULE)
+    canvas.setLineWidth(0.4)
+    canvas.line(MARGIN, y + 9, PAGE_W - MARGIN, y + 9)
+    canvas.setFillColor(INK_LIGHT)
+    canvas.setFont("Helvetica", 6.5)
+    canvas.drawString(MARGIN, y, "Vertraulich · Nur für internen Gebrauch")
+    canvas.drawCentredString(
+        PAGE_W / 2, y,
+        f"Firma-KI Analytics Report  ·  {datetime.utcnow().strftime('%d.%m.%Y')}"
+    )
+    canvas.drawRightString(PAGE_W - MARGIN, y, f"Seite {doc.page}")
+    canvas.restoreState()
+
+
+def _first_page(canvas, doc):
+    _draw_footer(canvas, doc)
+
+
+def _later_pages(canvas, doc):
+    canvas.saveState()
+    y = PAGE_H - 14
+    canvas.setStrokeColor(RULE)
+    canvas.setLineWidth(0.4)
+    canvas.line(MARGIN, y, PAGE_W - MARGIN, y)
+    canvas.setFillColor(INK_LIGHT)
+    canvas.setFont("Helvetica", 6.5)
+    canvas.drawString(MARGIN, y + 2, "Firma-KI  ·  Analytics Report")
+    canvas.drawRightString(PAGE_W - MARGIN, y + 2,
+                           datetime.utcnow().strftime("%d.%m.%Y"))
+    canvas.restoreState()
+    _draw_footer(canvas, doc)
+
+
+# ─────────────────────────────────────────────
+# Route
+# ─────────────────────────────────────────────
+@router.get("/export/analytics-report", name="dashboard_export_analytics")
+async def export_analytics_report(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    days: int = 30,
+):
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    since = datetime.utcnow() - timedelta(days=days)
+    stmt  = (
+        select(AuditLog)
+        .options(selectinload(AuditLog.ai_provider), selectinload(AuditLog.api_key))
+        .where(
+            AuditLog.organization_id == current_user.organization_id,
+            AuditLog.timestamp >= since,
+        )
+        .order_by(desc(AuditLog.timestamp))
+    )
+    res  = await db.execute(stmt)
+    logs = res.scalars().all()
+
+    # ── Aggregates ──────────────────────────────────────────
+    total_reqs       = len(logs)
+    total_in         = sum((l.tokens_original  or 0) for l in logs)
+    total_out        = sum((l.tokens_compressed or 0) for l in logs)
+    total_saved      = total_in - total_out
+    total_cost       = sum(float(l.cost_actual or 0) for l in logs)
+    total_cost_saved = sum(float(l.cost_saved  or 0) for l in logs)
+    savings_pct      = (total_saved / total_in * 100) if total_in else 0.0
+
+    prov_stats: dict = {}
+    for l in logs:
+        p = l.ai_provider.name if l.ai_provider else "Unbekannt"
+        prov_stats.setdefault(p, {"reqs": 0, "tok": 0, "cost": 0.0})
+        prov_stats[p]["reqs"] += 1
+        prov_stats[p]["tok"]  += l.tokens_compressed or l.tokens_original or 0
+        prov_stats[p]["cost"] += float(l.cost_actual or 0)
+
+    key_stats: dict = {}
+    for l in logs:
+        k = l.api_key.name if l.api_key else "Unbekannt"
+        key_stats.setdefault(k, {"reqs": 0, "cost": 0.0})
+        key_stats[k]["reqs"] += 1
+        key_stats[k]["cost"] += float(l.cost_actual or 0)
+
+    org_name = (current_user.organization.name
+                if current_user.organization else "Eigenständig")
+
+    # ── Build PDF ────────────────────────────────────────────
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=MARGIN,
+        rightMargin=MARGIN,
+        topMargin=14 * mm,
+        bottomMargin=16 * mm,
+        title="Firma-KI Analytics Report",
+        author=current_user.email,
+        subject=f"KI-Nutzungsbericht – letzte {days} Tage",
+    )
+
+    story = []
+
+    # 1 · Header
+    story.append(PageHeader(org_name, CONTENT_W))
+    story.append(Spacer(1, 8))
+
+    # 2 · Meta strip
+    story.append(MetaRow(
+        fields=[
+            ("Erstellt am",      datetime.utcnow().strftime("%d.%m.%Y %H:%M UTC")),
+            ("Angefordert von",  current_user.email),
+            ("Berichtszeitraum", f"Letzte {days} Tage"),
+        ],
+        width=CONTENT_W,
+    ))
+    story.append(Spacer(1, 14))
+
+    # 3 · KPI strip
+    story.append(KPIRow(
+        kpis=[
+            ("API-Anfragen gesamt", f"{total_reqs:,}",          True),
+            ("Token Input",         f"{total_in:,}",            False),
+            ("Token eingespart",    f"{total_saved:,}",         True),
+            ("Einsparung",          f"{savings_pct:.1f} %",     False),
+            ("Gesamtkosten",        f"${total_cost:.4f}",       False),
+            ("Kostenersparnis",     f"${total_cost_saved:.4f}", True),
+        ],
+        width=CONTENT_W,
+    ))
+    story.append(Spacer(1, 20))
+
+    # 4 · Executive Summary
+    story.append(SectionTitle("Zusammenfassung / Executive Summary", CONTENT_W))
+    story.append(Spacer(1, 6))
+    story.append(KeepTogether([_summary_table([
+        ("API-Anfragen gesamt",               f"{total_reqs:,}"),
+        ("Token Input gesamt",                f"{total_in:,}"),
+        ("Token an LLM weitergeleitet",       f"{total_out:,}"),
+        ("Token eingespart durch Firma-KI",   f"{total_saved:,}  ({savings_pct:.1f} %)"),
+        ("Gesamtkosten (USD)",                f"${total_cost:.6f}"),
+        ("Kostenersparnis generiert (USD)",   f"${total_cost_saved:.6f}"),
+    ])]))
+    story.append(Spacer(1, 22))
+
+    # 5 · Provider Metrics
+    story.append(SectionTitle("Anbieterübersicht / Provider Metrics", CONTENT_W))
+    story.append(Spacer(1, 6))
+
+    prov_data = [["ANBIETER", "ANFRAGEN", "TOKEN VERARBEITET", "KOSTEN (USD)"]]
+    for p, st in prov_stats.items():
+        prov_data.append([p, f"{st['reqs']:,}", f"{st['tok']:,}", f"${st['cost']:.4f}"])
+
+    story.append(KeepTogether([_table(prov_data, [
+        CONTENT_W * 0.30,
+        CONTENT_W * 0.18,
+        CONTENT_W * 0.28,
+        CONTENT_W * 0.24,
+    ])]))
+    story.append(Spacer(1, 10))
+
+    if prov_stats:
+        story.append(_bar_chart(
+            list(prov_stats.keys()),
+            [st["reqs"] for st in prov_stats.values()],
+            caption="API-Anfragen pro Anbieter",
+        ))
+    story.append(Spacer(1, 22))
+
+    # 6 · API Key Usage
+    story.append(SectionTitle("API-Schlüssel Nutzung / API Key Usage", CONTENT_W))
+    story.append(Spacer(1, 6))
+
+    key_data = [["API-SCHLÜSSEL", "ANFRAGEN", "KOSTEN (USD)"]]
+    for k, st in key_stats.items():
+        key_data.append([k, f"{st['reqs']:,}", f"${st['cost']:.4f}"])
+
+    story.append(KeepTogether([_table(key_data, [
+        CONTENT_W * 0.55,
+        CONTENT_W * 0.22,
+        CONTENT_W * 0.23,
+    ])]))
+    story.append(Spacer(1, 28))
+
+    # 7 · Closing note
+    story.append(HRFlowable(width=CONTENT_W, color=RULE, thickness=0.4))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph(
+        f"Dieser Bericht ist vertraulich und ausschließlich für autorisierte Mitarbeiter "
+        f"der {org_name} bestimmt. Alle Token- und Kostendaten stammen aus den Firma-KI "
+        f"Audit-Protokollen für den Zeitraum bis zum "
+        f"{datetime.utcnow().strftime('%d.%m.%Y %H:%M UTC')}.",
+        STYLE_NOTE,
+    ))
+
+    doc.build(story, onFirstPage=_first_page, onLaterPages=_later_pages)
+
+    buf.seek(0)
+    filename = f"FirmaKI_Analytics_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

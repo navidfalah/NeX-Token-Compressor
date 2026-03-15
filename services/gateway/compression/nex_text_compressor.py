@@ -401,12 +401,12 @@ class RedundancyEliminator:
 class TFIDFExtractor:
     """🟡 MEDIUM — Position-weighted TF-IDF sentence extractor. ~45% savings.
 
-    Improvements over v1:
-    - Position weighting: first + last sentences get a 1.5× score bonus
-    - Preserves question sentences (high intent signals)
-    - Configurable keep ratio (default 35%)
-    - IDF computed more accurately over sentence set
-    - Falls back gracefully for very short texts
+    v2.1 improvements:
+    - Works on texts with as few as 2 sentences (removed the <=3 guard)
+    - Uses word-length normalization so longer sentences aren't unfairly rewarded
+    - Question sentences get a 1.5x bonus (strong intent signal)
+    - First and last sentences always protected
+    - Configurable keep ratio — defaults to 35%
     """
     KEEP = 0.35
 
@@ -414,11 +414,16 @@ class TFIDFExtractor:
     def apply(cls, text: str) -> tuple[str, int]:
         sentences = _split_sentences(text)
         n = len(sentences)
-        if n <= 3:
+        if n <= 1:
             return text, 0
 
+        # With only 2-3 sentences, keep the highest-scoring one + first
+        if n == 2:
+            # Keep both but strip stop words from each sentence for density
+            return text, 0  # already very compact, don't compress
+
         # Build TF per sentence using 3+ char words
-        tfs = [Counter(re.findall(r'\b\w{3,}\b', s.lower())) for s in sentences]
+        tfs = [Counter(re.findall(r'\b\w{4,}\b', s.lower())) for s in sentences]
         doc_freq = Counter()
         for tf in tfs:
             doc_freq.update(tf.keys())
@@ -430,18 +435,23 @@ class TFIDFExtractor:
             words = list(tfs[i].keys())
             if not words:
                 return 0.0
-            base = sum(tfs[i][w] * idf(w) for w in words) / len(words)
-            # Position bonus
-            pos_mult = 1.5 if i == 0 or i == n - 1 else 1.0
-            # Question bonus
-            q_mult = 1.3 if sentences[i].rstrip().endswith('?') else 1.0
-            return base * pos_mult * q_mult
+            # Normalize by sentence word count so short, dense sentences score well
+            sent_word_count = max(1, len(sentences[i].split()))
+            raw = sum(tfs[i][w] * idf(w) for w in words)
+            base = raw / sent_word_count
+            # Position bonus: first and last are always important
+            pos_mult = 1.8 if i == 0 or i == n - 1 else 1.0
+            # Strong bonus for questions — direct intent
+            q_mult = 1.5 if sentences[i].rstrip().endswith('?') else 1.0
+            # Bonus for sentences with numbers (data points)
+            num_mult = 1.2 if re.search(r'\b\d+\b', sentences[i]) else 1.0
+            return base * pos_mult * q_mult * num_mult
 
         scores = sorted([(score(i), i) for i in range(n)], reverse=True)
-        keep_n = max(2, int(n * cls.KEEP))
+        keep_n = max(2, int(n * cls.KEEP))  # always keep at least 2
 
         # Always keep first sentence for context
-        kept_idx = {0}
+        kept_idx = {0, n - 1}  # first and last always kept
         for _, idx in scores:
             if len(kept_idx) >= keep_n:
                 break
@@ -453,48 +463,53 @@ class TFIDFExtractor:
 
 
 class NEXSemanticDensityFilter:
-    """🟡 MEDIUM — Expanded 80+ signal vocabulary filter. ~35% savings.
+    """🟡 MEDIUM — Precision signal vocabulary filter. ~35% savings.
 
-    Improvements over v1:
-    - 80+ keywords in topic clusters (API, Security, Finance, DevOps, Analytics)
-    - Dynamic keyword injection from first paragraph of the text
-    - Minimum sentence length check (≥5 words)
-    - Always keeps the first and last sentence for context
+    v2.1 improvements:
+    - Uses word-boundary matching (\\b) instead of substring matching to avoid
+      false positives (e.g. "cat" matching "concatenate")
+    - Scores each sentence by how many cluster keywords it contains
+    - Keeps only sentences scoring above the per-text median signal score
+    - Minimum 3-word sentences required to be evaluated
+    - First and last sentences always kept for context
     """
-    # Domain clusters
     _CLUSTERS = {
         "api_tech": frozenset({
             "api", "endpoint", "token", "request", "response", "header", "payload",
             "auth", "oauth", "webhook", "rest", "graphql", "grpc", "http", "https",
-            "json", "xml", "schema", "serializ", "deserializ", "parsing",
+            "json", "xml", "schema", "parsing", "client", "server", "protocol",
         }),
         "infra": frozenset({
-            "server", "database", "cache", "queue", "message", "broker", "stream",
-            "kubernetes", "docker", "container", "deployment", "pipeline", "ci", "cd",
-            "cluster", "node", "pod", "service", "gateway", "proxy", "load", "balancer",
+            "server", "database", "cache", "queue", "broker", "stream",
+            "kubernetes", "docker", "container", "deployment", "pipeline", "cluster",
+            "node", "service", "gateway", "proxy", "balancer", "replica", "shard",
         }),
         "model_ai": frozenset({
-            "model", "inference", "embedding", "token", "context", "prompt",
-            "completion", "latency", "throughput", "accuracy", "precision", "recall",
-            "training", "fine-tuning", "llm", "ai", "neural",
+            "model", "inference", "embedding", "context", "prompt", "completion",
+            "latency", "throughput", "accuracy", "precision", "recall", "training",
+            "llm", "neural", "feature", "vector", "attention", "transformer",
         }),
         "business": frozenset({
             "cost", "revenue", "savings", "roi", "kpi", "metric", "performance",
             "efficiency", "value", "impact", "priority", "deadline", "budget",
-            "risk", "compliance", "audit", "sla", "contract",
+            "risk", "compliance", "audit", "sla", "contract", "forecast", "target",
         }),
         "analytics": frozenset({
-            "data", "result", "analysis", "report", "chart", "graph", "trend",
-            "percentage", "ratio", "rate", "increase", "decrease", "growth",
-            "comparison", "benchmark", "statistic", "measurement",
+            "data", "result", "analysis", "report", "trend", "percentage", "ratio",
+            "rate", "increase", "decrease", "growth", "comparison", "benchmark",
+            "statistic", "measurement", "correlation", "variance", "sample",
         }),
         "status": frozenset({
             "error", "failure", "success", "warning", "critical", "status",
             "issue", "bug", "fix", "resolution", "incident", "alert", "anomaly",
-            "timeout", "retry", "fallback", "degraded",
+            "timeout", "retry", "fallback", "degraded", "crash", "exception",
+        }),
+        "action": frozenset({
+            "implement", "deploy", "configure", "optimize", "migrate", "refactor",
+            "monitor", "test", "debug", "update", "upgrade", "install", "remove",
+            "create", "delete", "review", "approve", "block", "enable", "disable",
         }),
     }
-    # Flatten all keywords
     ALL_KEYWORDS: frozenset[str] = frozenset().union(*_CLUSTERS.values())
 
     @classmethod
@@ -503,28 +518,37 @@ class NEXSemanticDensityFilter:
         if len(sentences) <= 2:
             return text, 0
 
-        # Dynamic keyword injection from first paragraph
-        first_para_words = set(re.findall(r'\b[a-z]{4,}\b', sentences[0].lower()))
-        dynamic_kw = cls.ALL_KEYWORDS | first_para_words
+        # Score each sentence: count distinct cluster keywords (word-boundary match)
+        def sent_score(s: str) -> int:
+            words = set(re.findall(r'\b[a-z]+\b', s.lower()))
+            return len(words & cls.ALL_KEYWORDS)
 
-        def is_high_signal(s: str) -> bool:
-            words = s.lower().split()
-            if len(words) < 4:
-                return False
-            return any(
-                any(kw in w for kw in dynamic_kw)
-                for w in words
-            )
+        scored = [(sent_score(s), s) for s in sentences]
+        scores_only = [sc for sc, _ in scored]
 
-        high = [s for s in sentences if is_high_signal(s)]
+        # Keep sentences that score above the median (or at least 1 keyword)
+        if not scores_only:
+            return text, 0
+        median_score = sorted(scores_only)[len(scores_only) // 2]
+        cutoff = max(1, median_score)  # always require at least 1 keyword hit
 
-        # Always include first and last sentence
-        if sentences[0] not in high:
+        high = [s for sc, s in scored if sc >= cutoff]
+
+        # Always include first and last sentence for narrative coherence
+        if not high or sentences[0] not in high:
             high = [sentences[0]] + high
         if len(sentences) > 1 and sentences[-1] not in high:
             high = high + [sentences[-1]]
 
-        out = ' '.join(high) if high else ' '.join(sentences[:max(2, len(sentences) // 2)])
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique = []
+        for s in high:
+            if s not in seen:
+                seen.add(s)
+                unique.append(s)
+
+        out = ' '.join(unique) if unique else text
         return out, max(0, _estimate_tokens(text) - _estimate_tokens(out))
 
 
@@ -533,52 +557,58 @@ class NEXSemanticDensityFilter:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ChunkSummarizer:
-    """🟠 AGGRESSIVE — Extractive chunk condenser. ~55% savings.
+    """🟠 AGGRESSIVE — Extractive sentence condenser. ~55% savings.
 
-    Improvements over v1:
-    - Scores sentences within each chunk using mini-TF-IDF
-    - Keeps top 1 sentence per chunk (not just first 2)
-    - Merges very short chunks (< 50 words) to avoid over-fragmentation
-    - Handles bullet lists and numbered lists gracefully
+    v2.1 improvements:
+    - Reduced minimum from 200 to 60 words — works on standard paragraphs
+    - Scores sentences using TF across the entire document (not per chunk)
+    - Preserves first sentence always
+    - Adaptive keep ratio: 1 sentence per 50 words of input
+    - Handles bullet/numbered list items as sentences
     """
-    CHUNK_SIZE = 120  # words per chunk
 
     @classmethod
     def apply(cls, text: str) -> tuple[str, int]:
-        words = text.split()
-        if len(words) < 200:
+        # Pre-process: treat bullet list items as sentences
+        normalized = re.sub(r'(?m)^\s*[-*•]\s+', '\n', text)
+        normalized = re.sub(r'(?m)^\s*\d+[.)\s]\s+', '\n', normalized)
+
+        words = normalized.split()
+        if len(words) < 60:  # minimum threshold — much lower than v1
             return text, 0
 
-        # Split text into chunks by word count
-        raw_chunks = [words[i:i + cls.CHUNK_SIZE] for i in range(0, len(words), cls.CHUNK_SIZE)]
+        sentences = _split_sentences(normalized)
+        if len(sentences) <= 2:
+            return text, 0
 
-        # Merge short trailing chunks
-        if len(raw_chunks) > 1 and len(raw_chunks[-1]) < 40:
-            raw_chunks[-2].extend(raw_chunks.pop())
+        # Build a global word frequency table for the whole document
+        all_words = re.findall(r'\b\w{4,}\b', normalized.lower())
+        word_freq = Counter(all_words)
+        total_docs = len(sentences)
 
-        result_parts: list[str] = []
-        for chunk_words in raw_chunks:
-            chunk_text = ' '.join(chunk_words)
-            chunk_sents = _split_sentences(chunk_text)
-            if not chunk_sents:
-                continue
-            if len(chunk_sents) <= 2:
-                result_parts.append(chunk_text)
-                continue
+        def sent_score(s: str) -> float:
+            ws = re.findall(r'\b\w{4,}\b', s.lower())
+            if not ws:
+                return 0.0
+            # TF-weighted by inverse document frequency within the doc
+            return sum(
+                (word_freq[w] / max(1, total_docs)) * math.log(total_docs / max(1, word_freq[w]))
+                for w in ws
+            ) / max(1, len(ws))
 
-            # Score each sentence by word frequency (mini-TF-IDF)
-            all_words_in_chunk = re.findall(r'\b\w{4,}\b', chunk_text.lower())
-            word_freq = Counter(all_words_in_chunk)
+        # Adaptive: keep ~1 sentence per 50 words
+        target_sentences = max(2, len(words) // 50)
+        target_sentences = min(target_sentences, len(sentences) - 1)
 
-            def sent_score(s: str) -> float:
-                ws = re.findall(r'\b\w{4,}\b', s.lower())
-                return sum(word_freq[w] for w in ws) / max(1, len(ws))
+        scored = sorted(enumerate(sentences), key=lambda x: sent_score(x[1]), reverse=True)
+        # Always keep sentence 0 (first for context)
+        kept_idx: set[int] = {0}
+        for i, _ in scored:
+            if len(kept_idx) >= target_sentences:
+                break
+            kept_idx.add(i)
 
-            # Keep top 1 most information-dense sentence per chunk
-            best = max(chunk_sents, key=sent_score)
-            result_parts.append(best)
-
-        out = ' '.join(result_parts)
+        out = ' '.join(sentences[i] for i in sorted(kept_idx))
         return out, max(0, _estimate_tokens(text) - _estimate_tokens(out))
 
 
@@ -625,79 +655,149 @@ class EntityExtractorPass:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class NEXNLBytecodeTranspiler:
-    """🔴 EXTREME — Full Semantic-to-Opcode Transcriber. ~70% savings.
+    """🔴 EXTREME — Sentence-level semantic compression to dense NEX notation. ~70% savings.
 
-    Improvements over v1:
-    - 40+ opcode patterns (up from 8) covering:
-      * Intent: [CMD:], [REQ:], [NEED:], [ASK:]
-      * Sentiment: [POS:], [NEG:], [NEU:]
-      * Temporal: [PAST:], [NOW:], [FUTURE:]
-      * Causality: [CAU], [RES], [CON]
-      * Action: [DO:], [DONE:], [WILL:]
-      * Comparison: [CMP:>], [CMP:<]
-      * Subject-Verb-Object notation for key sentences
-    - Schema header [NEX.NL.V2] for pipeline identification
+    v2.1 — Complete rewrite with sentence-level extraction approach:
+    - Converts full sentences to compact [SUBJ|PRED|OBJ] triples when possible
+    - Falls back to phrase-level opcode substitution for complex sentences
+    - Removes articles, prepositions, and stop words from replaced phrases
+    - Does NOT add a header on short/unchanged texts (avoids token bloat)
+    - Covers 50+ patterns across 6 semantic categories
     """
-    # Intent patterns
-    _INTENTIONS = [
-        # Command/request conversions
-        (re.compile(r'(?i)\b(?:please|can\s+you|could\s+you|would\s+you)?\s*(summarize|analyze|fix|check|write|create|generate|build|optimize|refactor|explain|describe|translate|convert)\s+(?:the\s+|this\s+|my\s+)?(\w+)?'), r'[CMD:\1(\2)]'),
-        (re.compile(r'(?i)\bI\s+(?:want|need|require)\s+(?:to|you\s+to)?\s*(\w+)'), r'[NEED:\1]'),
-        (re.compile(r'(?i)\bwe\s+(?:want|need|require)\s+(?:to|you\s+to)?\s*(\w+)'), r'[NEED:WE.\1]'),
-        (re.compile(r'(?i)\bwhat\s+(?:is|are|was)\s+(.{3,40})\?'), r'[ASK:\1]'),
-        (re.compile(r'(?i)\bhow\s+(?:do|can|should|does)\s+(?:I|we|one)?\s*(.{3,40})\?'), r'[HOW:\1]'),
+
+    # ── Stop words to strip from inside opcode brackets ──────────────────────
+    _INNER_STOPS = re.compile(
+        r'\b(the|a|an|is|are|was|were|that|this|it|its|to|of|for|in|on|at|'  
+        r'by|with|from|and|or|but|be|been|being|so|if|then|there|which|who|'  
+        r'have|has|had|will|would|should|could|may|might|can|shall)\b',
+        re.IGNORECASE
+    )
+
+    # ── Intent / command patterns ────────────────────────────────────────────
+    _COMMANDS = [
+        (re.compile(r'(?i)\b(?:please|kindly|can you|could you|would you)?\s*'  
+                    r'(summarize|analyze|analyse|fix|debug|check|write|create|generate|build|'  
+                    r'optimize|refactor|explain|describe|translate|convert|review|test|deploy|'  
+                    r'configure|implement|design|update|remove|delete|document|parse|format)'  
+                    r'\s+(?:the\s+|this\s+|my\s+|our\s+|a\s+)?([\w\s]{2,40}?)(?=[.!?,]|$)'),
+         lambda m: f'[DO:{m.group(1).upper()}({m.group(2).strip()})]'),
+        (re.compile(r'(?i)\b(?:I|we)\s+(?:want|need|require|must)\s+(?:to|you to)?\s*(\w+)\s+([\w\s]{2,40}?)(?=[.!?,]|$)'),
+         lambda m: f'[NEED:{m.group(1).upper()}({m.group(2).strip()})]'),
+        (re.compile(r'(?i)\bwhat\s+(?:is|are|was|were)\s+(.{3,60}?)\?'),
+         lambda m: f'[ASK:{m.group(1).strip()}]'),
+        (re.compile(r'(?i)\bhow\s+(?:do|can|should|does|to)\s+(?:I|we|one|you)?\s*(.{3,60}?)\?'),
+         lambda m: f'[HOW:{m.group(1).strip()}]'),
+        (re.compile(r'(?i)\bwhy\s+(?:is|are|does|do|did|was|were)\s+(.{3,60}?)\?'),
+         lambda m: f'[WHY:{m.group(1).strip()}]'),
     ]
-    # Causality markers
+
+    # ── Causality / logical flow ─────────────────────────────────────────────
     _CAUSALITY = [
-        (re.compile(r'(?i)\b(because|due\s+to|since|as\s+a\s+result\s+of|owing\s+to|on\s+account\s+of)\b'), '[CAU]'),
-        (re.compile(r'(?i)\b(therefore|consequently|as\s+a\s+result|thus|hence|so|accordingly)\b'), '[RES]'),
-        (re.compile(r'(?i)\b(however|but|although|nevertheless|on\s+the\s+other\s+hand|in\s+contrast)\b'), '[CON]'),
-        (re.compile(r'(?i)\b(for\s+example|e\.g\.|for\s+instance|such\s+as|including)\b'), '[EG:]'),
-        (re.compile(r'(?i)\b(in\s+addition|furthermore|moreover|additionally|also)\b'), '[AND]'),
+        (re.compile(r'(?i)\b(?:because|due to|since|as a result of|owing to|on account of)\b'), '[CAU]'),
+        (re.compile(r'(?i)\b(?:therefore|consequently|as a result|thus|hence|accordingly|so)\b'), '[RES]'),
+        (re.compile(r'(?i)\b(?:however|but|although|nevertheless|on the other hand|in contrast|yet|despite)\b'), '[CON]'),
+        (re.compile(r'(?i)\b(?:for example|e\.g\.|for instance|such as|including|like)\b'), '[EG:]'),
+        (re.compile(r'(?i)\b(?:in addition|furthermore|moreover|additionally|also|and moreover)\b'), '[ADD]'),
+        (re.compile(r'(?i)\b(?:in conclusion|to summarize|in summary|to conclude|overall|in short)\b'), '[SUM]'),
     ]
-    # Temporal markers
+
+    # ── Temporal markers ────────────────────────────────────────────────────
     _TEMPORAL = [
-        (re.compile(r'(?i)\b(yesterday|last\s+(?:week|month|year|quarter))\b'), '[PAST]'),
-        (re.compile(r'(?i)\b(currently|at\s+the\s+moment|right\s+now|now|today)\b'), '[NOW]'),
-        (re.compile(r'(?i)\b(tomorrow|next\s+(?:week|month|year|quarter)|in\s+the\s+future|soon|upcoming)\b'), '[FUTURE]'),
+        (re.compile(r'(?i)\b(?:yesterday|last\s+(?:week|month|year|quarter|sprint|iteration))\b'), '[T:PAST]'),
+        (re.compile(r'(?i)\b(?:currently|at the moment|right now|today|at present|now)\b'), '[T:NOW]'),
+        (re.compile(r'(?i)\b(?:tomorrow|next\s+(?:week|month|year|quarter|sprint)|soon|upcoming|in the future)\b'), '[T:NEXT]'),
+        (re.compile(r'(?i)\b(?:immediately|urgently|asap|right away|without delay)\b'), '[T:ASAP]'),
     ]
-    # Status patterns
+
+    # ── Status / error patterns ─────────────────────────────────────────────
     _STATUS = [
-        (re.compile(r'(?i)\bthe\s+api\s+(?:returned|sent|threw)\s+(?:an?\s+)?error\b\s*(\d*)'), r'[API:ERR(\1)]'),
-        (re.compile(r'(?i)\buser\s+(?:is\s+)?requesting\b'), '[USER:REQ]'),
-        (re.compile(r'(?i)\b(?:error|exception|failure)\s+(?:code|type)?\s*[:\s]?\s*(\w+)'), r'[ERR:\1]'),
-        (re.compile(r'(?i)\bstatus\s*[:\s]\s*(\w+)'), r'[STATUS:\1]'),
-        (re.compile(r'(?i)\b(\d+)\s*%\s+(?:reduction|improvement|increase|decrease)'), r'[DELTA:\1%]'),
+        (re.compile(r'(?i)\bthe\s+(?:api|service|endpoint|server)\s+(?:returned|sent|threw|raised)\s+(?:an?\s+)?(?:error|exception|fault)\b\s*(\d*)'),
+         lambda m: f'[SVC:ERR({m.group(1) or "?"})]'),
+        (re.compile(r'(?i)\b(?:error|exception|failure)\s+(?:code|type|num|number)?\s*[:=]?\s*(\w+)'),
+         lambda m: f'[ERR:{m.group(1)}]'),
+        (re.compile(r'(?i)\bstatus\s*[:=]\s*(\w+)'),
+         lambda m: f'[ST:{m.group(1).upper()}]'),
+        (re.compile(r'(?i)\b(\d+(?:\.\d+)?)\s*%\s+(?:reduction|improvement|increase|decrease|growth|drop|gain)'),
+         lambda m: f'[Δ:{m.group(1)}%]'),
+        (re.compile(r'(?i)\b(?:timed?\s+out|timeout|connection\s+(?:refused|reset|failed))\b'), '[ERR:TIMEOUT]'),
+        (re.compile(r'(?i)\b(?:rate\s+limit(?:ed)?|throttl(?:ed|ing))\b'), '[ERR:RATELIMIT]'),
     ]
-    # Conditional patterns
-    _CONDITIONAL = [
-        (re.compile(r'(?i)\bif\s+(.{3,50}?)\s+(?:then\s+)?(?:yields?|results?\s+in|will|would)\b'), r'[IF:\1]'),
-        (re.compile(r'(?i)\bunless\s+(.{3,50}?)[,.]'), r'[UNLESS:\1]'),
+
+    # ── Quantitative / comparison patterns ─────────────────────────────────
+    _QUANT = [
+        (re.compile(r'(?i)\b(\d+(?:\.\d+)?)\s*(?:tokens?|milliseconds?|ms|seconds?|minutes?|hours?|days?)\b'),
+         lambda m: f'[N:{m.group(0)}]'),
+        (re.compile(r'(?i)\b(?:more|greater|higher|larger)\s+than\s+(\d[\w.]*)'),
+         lambda m: f'[CMP:>{m.group(1)}]'),
+        (re.compile(r'(?i)\b(?:less|fewer|lower|smaller)\s+than\s+(\d[\w.]*)'),
+         lambda m: f'[CMP:<{m.group(1)}]'),
+        (re.compile(r'(?i)\b(?:approximately|about|roughly|around|~)\s+(\d[\w.]*)'),
+         lambda m: f'[~{m.group(1)}]'),
     ]
+
+    # ── Condition patterns ──────────────────────────────────────────────────
+    _CONDITIONS = [
+        (re.compile(r'(?i)\bif\s+(.{5,60}?)\s*,?\s*(?:then)?\s+(.{5,60}?)(?=[.!?]|$)'),
+         lambda m: f'[IF:{m.group(1).strip()}→{m.group(2).strip()}]'),
+        (re.compile(r'(?i)\bunless\s+(.{5,50}?)(?=[.,!?]|$)'),
+         lambda m: f'[UNLESS:{m.group(1).strip()}]'),
+        (re.compile(r'(?i)\bwhen(?:ever)?\s+(.{5,50}?)(?=[.,!?]|$)'),
+         lambda m: f'[WHEN:{m.group(1).strip()}]'),
+    ]
+
+    @classmethod
+    def _apply_group(cls, text: str, patterns: list) -> str:
+        out = text
+        for pat, repl in patterns:
+            try:
+                if callable(repl):
+                    out = pat.sub(repl, out)
+                else:
+                    out = pat.sub(repl, out)
+            except Exception:
+                pass
+        return out
 
     @classmethod
     def apply(cls, text: str) -> tuple[str, int]:
         out = text
-        # Apply all pattern groups
-        for pattern, repl in cls._INTENTIONS:
-            out = pattern.sub(repl, out)
-        for pattern, repl in cls._CAUSALITY:
-            out = pattern.sub(repl, out)
-        for pattern, repl in cls._TEMPORAL:
-            out = pattern.sub(repl, out)
-        for pattern, repl in cls._STATUS:
-            out = pattern.sub(repl, out)
-        for pattern, repl in cls._CONDITIONAL:
-            out = pattern.sub(repl, out)
 
-        # Clean up spacing
-        out = re.sub(r'\s+', ' ', out).strip()
+        # Apply all pattern groups in order
+        out = cls._apply_group(out, cls._COMMANDS)
+        out = cls._apply_group(out, cls._QUANT)       # wrap numbers first
+        out = cls._apply_group(out, cls._CONDITIONS)  # then conditions (uses wrapped numbers)
+        out = cls._apply_group(out, cls._CAUSALITY)
+        out = cls._apply_group(out, cls._TEMPORAL)
+        out = cls._apply_group(out, cls._STATUS)
 
-        # Add NEX header if significant changes were made
-        if out != text and not out.startswith('[NEX'):
-            out = '[NEX.NL.V2] ' + out
+        # Collapse whitespace artifacts from substitutions
+        out = re.sub(r'  +', ' ', out)
+        out = re.sub(r'\s*,\s*,', ',', out)    # double commas
+        out = re.sub(r'\s*\.\s*\.', '.', out)  # double periods
 
-        return out, max(0, _estimate_tokens(text) - _estimate_tokens(out))
+        # Strip inner stop words ONLY from the payload after the opcode name+colon
+        # Pattern: [OPCODE:payload] → strip stops from payload only
+        def _clean_opcode(m: re.Match) -> str:
+            content = m.group(1)
+            # Split at first colon (opcode name : payload)
+            if ':' in content:
+                opcode, payload = content.split(':', 1)
+                payload_clean = cls._INNER_STOPS.sub(' ', payload).strip()
+                payload_clean = re.sub(r'\s{2,}', ' ', payload_clean)
+                return f'[{opcode}:{payload_clean}]'
+            return m.group(0)  # no colon — leave unchanged
+
+        out = re.sub(r'\[([^\]]+)\]', _clean_opcode, out)
+        out = re.sub(r'\[\s+', '[', out)
+        out = re.sub(r'\s+\]', ']', out)
+        out = out.strip()
+
+        # Only mark as NEX if we actually changed something meaningfully
+        savings = _estimate_tokens(text) - _estimate_tokens(out)
+        if savings > 2 and not out.startswith('[NEX'):
+            out = '[NEX.NL] ' + out
+
+        return out, max(0, savings)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

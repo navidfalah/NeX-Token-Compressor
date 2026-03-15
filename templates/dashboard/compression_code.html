@@ -125,11 +125,7 @@
 </style>
 
 <script>
-let selectedInputAlgo = 'ast';
-
-// Map from UI key → backend algo key
-const INPUT_ALGO_MAP  = { 'ast':'ast', 'type_erase':'minifier', 'regex':'regex',
-                           'dead_code':'dead_code', 'minifier':'minifier', 'whitespace':'whitespace' };
+let selectedInputAlgo = 'ast_strip';  // default — matches ALGO_REGISTRY key
 
 function selectAlgo(side, algo, btn) {
     const prefix = 'input';
@@ -174,7 +170,7 @@ async function runSide(side) {
     const textarea = document.getElementById('input-code');
     const text = textarea.value.trim();
     if (!text) return;
-    const algoKey = (INPUT_ALGO_MAP[selectedInputAlgo] || selectedInputAlgo);
+    const algoKey = selectedInputAlgo;
 
     document.getElementById(`input-wait`).classList.add('hidden');
     document.getElementById(`input-result`).classList.remove('hidden');
@@ -209,6 +205,5 @@ async function runSide(side) {
         document.getElementById(`input-metrics`).innerHTML = `<p class="col-span-3 text-xs" style="color:var(--accent-red);">Error: ${e.message}</p>`;
     }
 }
-</script>
 </script>
 {% endblock %}
